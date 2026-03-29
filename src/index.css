@@ -1,0 +1,94 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", serif;
+
+  --color-primary: #0F1113;
+  --color-secondary: #2E3436;
+  --color-tertiary: #777777;
+  --color-neutral: #F9F8F6;
+  --color-border: rgba(15, 17, 19, 0.06);
+  --color-destructive: #DC2626;
+}
+
+@layer base {
+  body {
+    @apply bg-neutral text-primary font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-serif tracking-tight text-primary;
+  }
+}
+
+@layer components {
+  .card-premium {
+    @apply bg-white border border-border rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.03)] transition-all duration-500;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-neutral px-10 py-4 rounded-full font-medium transition-all duration-300 hover:bg-secondary hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-neutral px-10 py-4 rounded-full font-medium transition-all duration-300 hover:opacity-90 hover:shadow-lg hover:shadow-secondary/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none;
+  }
+
+  .btn-outline {
+    @apply bg-transparent border border-primary/10 text-primary px-10 py-4 rounded-full font-medium transition-all duration-300 hover:bg-primary/5 hover:border-primary/20 active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100;
+  }
+
+  .input-field {
+    @apply w-full bg-neutral/50 border border-border rounded-2xl px-5 py-4 text-sm font-sans focus:outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all duration-300 placeholder:text-tertiary/40;
+  }
+
+  .redaction-block {
+    @apply bg-primary text-transparent select-none transition-all duration-500 rounded-sm relative overflow-hidden inline-block align-middle;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 4px,
+      rgba(255, 255, 255, 0.03) 4px,
+      rgba(255, 255, 255, 0.03) 8px
+    );
+  }
+
+  .redaction-block::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full transition-transform duration-1000 ease-in-out;
+  }
+
+  .redaction-block:hover::before {
+    @apply translate-x-full;
+  }
+
+  .redaction-suggestion {
+    @apply bg-primary/5 text-primary/40 relative cursor-pointer rounded-sm px-1 transition-colors duration-300 hover:bg-primary/10;
+    text-decoration: line-through;
+  }
+
+  .redaction-suggestion::after {
+    content: 'REDACT';
+    @apply absolute -top-4 left-0 text-[9px] font-mono tracking-widest text-tertiary opacity-0 transition-opacity duration-300;
+  }
+
+  .redaction-suggestion:hover::after {
+    @apply opacity-100;
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, rgba(15, 17, 19, 0.03) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgba(15, 17, 19, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+  }
+}
