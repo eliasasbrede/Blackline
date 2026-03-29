@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Shield, Download, Fingerprint, FileCheck, ArrowRight, Copy, Check, Lock, ChevronLeft, Database, Activity } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { ReleaseManifest } from "../types";
 import { cn } from "../lib/utils";
 
@@ -81,7 +82,7 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
             </button>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/5 mb-8 backdrop-blur-sm">
               <Shield className="w-3 h-3 text-primary" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Release Manifest v1.0.42</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Release Manifest v1.0</span>
             </div>
             <h2 className="text-6xl font-serif mb-6 italic leading-[0.9]">Disclosure <br /><span className="text-tertiary/40">Proven.</span></h2>
             <p className="text-tertiary font-light text-lg leading-relaxed max-w-md">
@@ -103,7 +104,12 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
               
               <div className="grid grid-cols-1 sm:grid-cols-3 p-6 border-b border-border hover:bg-neutral/30 transition-colors duration-300">
                 <div className="text-[10px] font-mono uppercase tracking-widest text-tertiary mb-2 sm:mb-0">Reviewer</div>
-                <div className="sm:col-span-2 text-sm font-mono text-primary break-all">{manifest.reviewer}</div>
+                <div className="sm:col-span-2 text-sm font-mono text-primary break-all">
+                  {manifest.reviewerName && <span className="font-medium">{manifest.reviewerName}</span>}
+                  {manifest.reviewerName && manifest.reviewerEmail && <span className="text-tertiary mx-1">·</span>}
+                  {manifest.reviewerEmail && <span className="text-tertiary">{manifest.reviewerEmail}</span>}
+                  {!manifest.reviewerName && !manifest.reviewerEmail && <span className="text-tertiary/40 italic">Anonymous Reviewer</span>}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 p-6 border-b border-border hover:bg-neutral/30 transition-colors duration-300">
@@ -140,7 +146,8 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
               onClick={onNext}
               className="btn-outline flex-1 flex items-center justify-center gap-3 group transition-all duration-500 hover:shadow-md active:scale-[0.98]"
             >
-              Midnight Proof
+              Blockchain Attestation
+              <span className="text-[8px] opacity-60 font-normal ml-1">(Preview)</span>
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </motion.div>
@@ -203,9 +210,9 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
                     animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
                     exit={{ opacity: 0, filter: "blur(4px)", y: -10 }}
                     transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }}
-                    className="font-serif text-lg leading-[2] text-primary whitespace-pre-wrap"
+                    className="font-serif text-lg leading-[2] text-primary whitespace-pre-wrap markdown-preview"
                   >
-                    {redactedText}
+                    <ReactMarkdown>{redactedText}</ReactMarkdown>
                   </motion.div>
                 ) : (
                   <motion.pre 
@@ -225,14 +232,13 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
             <div className="p-4 border-t border-border bg-neutral/30 flex items-center justify-between relative z-10 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-ping absolute inset-0 opacity-20" />
-                  <div className="w-2 h-2 rounded-full bg-green-500 relative z-10 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                  <div className="w-2 h-2 rounded-full bg-tertiary/40 relative z-10" />
                 </div>
-                <span className="text-[10px] font-mono tracking-[0.2em] text-tertiary uppercase">Verified on Chain</span>
+                <span className="text-[10px] font-mono tracking-[0.2em] text-tertiary/60 uppercase">Local Verification Only</span>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-mono tracking-[0.2em] text-tertiary/40 uppercase">
                 <Activity className="w-3 h-3" />
-                Protocol v1.0.42
+                Protocol v1.0
               </div>
             </div>
           </div>

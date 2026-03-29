@@ -1,0 +1,7 @@
+pragma compact-v8;
+
+export ledger attestations: Map<Bytes<32>, Bytes<32>>;
+
+export circuit attestRelease(documentId: Bytes<32>, metadataHash: Bytes<32>): [] {
+  attestations.insert(documentId, metadataHash);
+}

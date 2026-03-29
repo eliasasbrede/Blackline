@@ -45,7 +45,7 @@ export function Header({ onHome, onRedact, isLanding = false }: { onHome?: () =>
       </nav>
       
       <div className="flex items-center gap-6">
-        <span className="hidden sm:inline text-[9px] font-mono text-tertiary/60 uppercase tracking-widest">v1.0.4-stable</span>
+        <span className="hidden sm:inline text-[9px] font-mono text-tertiary/60 uppercase tracking-widest">v1.0.0-mvp</span>
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="w-10 h-10 rounded-full border border-primary/10 flex items-center justify-center hover:bg-primary/5 transition-colors relative z-50 md:hidden"
@@ -110,7 +110,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           >
             <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/5 mb-8 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(15,17,19,0.5)]" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Midnight Network Enabled</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Midnight Network — Preview</span>
             </motion.div>
             
             <motion.h1 variants={itemVariants} className="text-6xl md:text-7xl lg:text-8xl font-serif leading-[0.9] mb-8 italic">
@@ -246,15 +246,15 @@ export function Landing({ onStart }: { onStart: () => void }) {
 
               <div className="mt-4 flex justify-between items-center relative z-10">
                 <div className="flex -space-x-2">
-                  {[1, 2, 3].map((i, index) => (
+                  {['BL', 'JS', 'MR'].map((initials, index) => (
                     <motion.div 
-                      key={i} 
+                      key={initials} 
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 + (index * 0.1) }}
                       className="w-5 h-5 rounded-full border border-white bg-neutral flex items-center justify-center overflow-hidden shadow-sm hover:z-10 hover:scale-110 transition-transform duration-300"
                     >
-                      <img src={`https://picsum.photos/seed/${i + 10}/32/32`} alt="User" referrerPolicy="no-referrer" />
+                      <span className="text-[6px] font-mono font-bold text-primary">{initials}</span>
                     </motion.div>
                   ))}
                   <motion.div 
@@ -268,7 +268,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
                 </div>
                 <div className="flex items-center gap-1.5 text-[8px] font-mono text-tertiary uppercase tracking-widest bg-primary/5 px-2 py-1 rounded-full">
                   <Lock className="w-2.5 h-2.5" />
-                  <span>End-to-End Encrypted</span>
+                  <span>SHA-256 Verified</span>
                 </div>
               </div>
             </div>
@@ -358,8 +358,8 @@ export function Landing({ onStart }: { onStart: () => void }) {
               transition={{ duration: 0.3 }}
               className="p-8 bg-white/80 backdrop-blur-sm border border-border rounded-3xl transition-colors duration-300 hover:border-primary/20"
             >
-              <h4 className="font-serif text-xl mb-4 italic text-primary">Local Processing</h4>
-              <p className="text-sm text-tertiary leading-relaxed">AI analysis runs in a secure, isolated environment, ensuring your data remains private.</p>
+              <h4 className="font-serif text-xl mb-4 italic text-primary">Server-Side AI</h4>
+              <p className="text-sm text-tertiary leading-relaxed">AI analysis is processed server-side. Your document text is never stored or persisted beyond the active session.</p>
             </motion.div>
           </div>
         </motion.div>
@@ -433,10 +433,10 @@ export function Landing({ onStart }: { onStart: () => void }) {
               Get a tailored demonstration of how Blackline can integrate with your existing compliance infrastructure.
             </p>
           </div>
-          <button className="relative z-10 w-full md:w-auto whitespace-nowrap py-4 px-8 bg-neutral text-primary rounded-xl text-[10px] font-mono uppercase tracking-widest hover:bg-neutral/90 transition-all duration-500 flex items-center justify-center gap-3 shrink-0 hover:scale-105 hover:shadow-xl active:scale-95 group/contact">
+          <a href="mailto:hello@blackline.io" className="relative z-10 w-full md:w-auto whitespace-nowrap py-4 px-8 bg-neutral text-primary rounded-xl text-[10px] font-mono uppercase tracking-widest hover:bg-neutral/90 transition-all duration-500 flex items-center justify-center gap-3 shrink-0 hover:scale-105 hover:shadow-xl active:scale-95 group/contact no-underline">
             Contact Sales
             <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover/contact:translate-x-1" />
-          </button>
+          </a>
         </motion.div>
       </section>
     </div>

@@ -1,69 +1,52 @@
 import { Redaction } from "../types";
 
+interface RedactionResponse {
+  redactions: Array<{
+    text: string;
+    startIndex: number;
+    endIndex: number;
+    type: string;
+    confidence: number;
+    reason: string;
+  }>;
+  error?: string;
+}
+
 export async function suggestRedactions(text: string, instructions: string): Promise<Redaction[]> {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  const response = await fetch("/api/redact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, instructions }),
+  });
 
-  const redactions: Redaction[] = [];
-  
-  // Simple mock logic: find capitalized words that look like names, or anything that looks like an email/amount
-  // This is just a simulation for the UI shell.
-  
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  const amountRegex = /\$\d+(?:,\d{3})*(?:\.\d{2})?/g;
-  const nameRegex = /[A-Z][a-z]+ [A-Z][a-z]+/g;
-
-  let match;
-
-  // Find Emails
-  while ((match = emailRegex.exec(text)) !== null) {
-    redactions.push({
-      id: crypto.randomUUID(),
-      text: match[0],
-      startIndex: match.index,
-      endIndex: match.index + match[0].length,
-      type: "email",
-      confidence: 0.99,
-      status: 'suggested',
-      reason: "Identified as an email address."
-    });
-  }
-
-  // Find Amounts
-  while ((match = amountRegex.exec(text)) !== null) {
-    redactions.push({
-      id: crypto.randomUUID(),
-      text: match[0],
-      startIndex: match.index,
-      endIndex: match.index + match[0].length,
-      type: "financial",
-      confidence: 0.95,
-      status: 'suggested',
-      reason: "Identified as a financial amount."
-    });
-  }
-
-  // Find Names (very naive)
-  while ((match = nameRegex.exec(text)) !== null) {
-    // Avoid overlapping with emails
-    const isOverlapping = redactions.some(r => 
-      (match!.index >= r.startIndex && match!.index < r.endIndex) ||
-      (match!.index + match![0].length > r.startIndex && match!.index + match![0].length <= r.endIndex)
-    );
-
-    if (!isOverlapping) {
-      redactions.push({
-        id: crypto.randomUUID(),
-        text: match[0],
-        startIndex: match.index,
-        endIndex: match.index + match[0].length,
-        type: "person",
-        confidence: 0.85,
-        status: 'suggested',
-        reason: "Identified as a personal name."
-      });
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ error: "Unknown error" }));
+    
+    if (response.status === 413) {
+      throw new Error("Document is too large. Please use a document under 100,000 characters.");
     }
+    if (response.status === 429) {
+      throw new Error("Rate limited. Please wait a moment and try again.");
+    }
+    
+    throw new Error(errorBody.error || `Server error (${response.status})`);
   }
 
-  return redactions.sort((a, b) => a.startIndex - b.startIndex);
+  const data: RedactionResponse = await response.json();
+
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  // Transform server response into Redaction objects with IDs and status
+  return (data.redactions || []).map((r) => ({
+    id: crypto.randomUUID(),
+    text: r.text,
+    startIndex: r.startIndex,
+    endIndex: r.endIndex,
+    type: r.type,
+    confidence: r.confidence,
+    status: "suggested" as const,
+    reason: r.reason,
+  }));
 }

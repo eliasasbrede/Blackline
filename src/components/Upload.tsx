@@ -4,18 +4,39 @@ import { Upload as UploadIcon, FileText, ArrowRight, Info, ChevronLeft, Settings
 import { cn } from "../lib/utils";
 
 interface UploadProps {
+  initialText?: string;
+  initialInstructions?: string;
   onNext: (text: string, instructions: string) => void;
   onBack: () => void;
 }
 
-export function Upload({ onNext, onBack }: UploadProps) {
-  const [text, setText] = useState("");
-  const [instructions, setInstructions] = useState("Redact all personal names, email addresses, and specific financial amounts.");
+export function Upload({ initialText = "", initialInstructions = "Redact all personal names, email addresses, and specific financial amounts.", onNext, onBack }: UploadProps) {
+  const [text, setText] = useState(initialText);
+  const [instructions, setInstructions] = useState(initialInstructions);
   const [isDragging, setIsDragging] = useState(false);
+
+  const MAX_FILE_SIZE = 100_000; // 100KB
+  const ALLOWED_EXTENSIONS = ['.txt', '.md'];
+
+  const validateFile = (file: File): string | null => {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return `Unsupported file type "${ext}". Please upload a .txt or .md file.`;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return `File too large (${(file.size / 1000).toFixed(0)}KB). Maximum size is ${MAX_FILE_SIZE / 1000}KB.`;
+    }
+    return null;
+  };
+
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const error = validateFile(file);
+      if (error) { setFileError(error); return; }
+      setFileError(null);
       const reader = new FileReader();
       reader.onload = (event) => {
         setText(event.target?.result as string);
@@ -29,6 +50,9 @@ export function Upload({ onNext, onBack }: UploadProps) {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
+      const error = validateFile(file);
+      if (error) { setFileError(error); return; }
+      setFileError(null);
       const reader = new FileReader();
       reader.onload = (event) => {
         setText(event.target?.result as string);
@@ -117,6 +141,19 @@ export function Upload({ onNext, onBack }: UploadProps) {
             {/* Button shine effect */}
             <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent z-0" />
           </button>
+
+          <AnimatePresence>
+            {fileError && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-xl text-sm text-center"
+              >
+                {fileError}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Right Column: Document Input */}

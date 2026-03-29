@@ -21,12 +21,31 @@ export default function App() {
     originalText: "",
     redactedText: "",
     redactions: [],
-    instructions: "Redact all personal names, email addresses, and specific financial amounts."
+    instructions: "Redact all personal names, email addresses, and specific financial amounts.",
+    reviewerName: "",
+    reviewerEmail: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleStart = () => setStep('UPLOAD');
+  // Auto-dismiss error toast after 5 seconds
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  const handleStart = () => {
+    setDocState({
+      originalText: "",
+      redactedText: "",
+      redactions: [],
+      instructions: "Redact all personal names, email addresses, and specific financial amounts.",
+      reviewerName: "",
+      reviewerEmail: "",
+    });
+    setStep('UPLOAD');
+  };
   
   const handleUploadNext = async (text: string, instructions: string) => {
     setIsLoading(true);
@@ -87,15 +106,18 @@ export default function App() {
       const finalHash = await generateHash(redactedText);
 
       const timestamp = new Date().toISOString();
-      const reviewer = "m.smith@blackline.io";
+      const reviewerLine = docState.reviewerName
+        ? `${docState.reviewerName} <${docState.reviewerEmail}>`
+        : docState.reviewerEmail || "Anonymous Reviewer";
 
-      const finalDocumentWithHash = `${redactedText}\n\n=================================================================\nCRYPTOGRAPHIC PROOF OF DISCLOSURE\n=================================================================\nSHA-256 HASH : ${finalHash}\nORIGINAL HASH: ${originalHash}\nTIMESTAMP    : ${timestamp}\nREVIEWER     : ${reviewer}\n=================================================================`;
+      const finalDocumentWithHash = `${redactedText}\n\n=================================================================\nCRYPTOGRAPHIC PROOF OF DISCLOSURE\n=================================================================\nSHA-256 HASH : ${finalHash}\nORIGINAL HASH: ${originalHash}\nTIMESTAMP    : ${timestamp}\nREVIEWER     : ${reviewerLine}\n=================================================================`;
 
       const manifest: ReleaseManifest = {
         hash: finalHash,
         originalHash: originalHash,
         timestamp: timestamp,
-        reviewer: reviewer,
+        reviewerName: docState.reviewerName,
+        reviewerEmail: docState.reviewerEmail,
         policy: docState.instructions,
         redactionCount: acceptedRedactions.length
       };
@@ -110,7 +132,7 @@ export default function App() {
     }
   };
 
-  const handleManifestNext = () => setStep('REVIEW'); // This goes to Midnight Proof in our flow
+  const handleManifestNext = () => setStep('MIDNIGHT');
 
   return (
     <div className="min-h-screen bg-neutral text-primary font-sans selection:bg-primary selection:text-neutral relative">
@@ -171,6 +193,8 @@ export default function App() {
           {step === 'UPLOAD' && (
             <motion.div key="upload" initial={{ opacity: 0, y: 15, filter: "blur(8px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -15, filter: "blur(8px)" }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}>
               <Upload 
+                initialText={docState.originalText}
+                initialInstructions={docState.instructions}
                 onNext={handleUploadNext} 
                 onBack={() => setStep('LANDING')} 
               />
@@ -182,7 +206,10 @@ export default function App() {
               <RedactionReview 
                 text={docState.originalText}
                 redactions={docState.redactions}
+                reviewerName={docState.reviewerName}
+                reviewerEmail={docState.reviewerEmail}
                 onUpdateRedactions={handleRedactionUpdate}
+                onUpdateReviewer={(name, email) => setDocState(prev => ({ ...prev, reviewerName: name, reviewerEmail: email }))}
                 onNext={handleRedactionNext}
                 onBack={() => setStep('UPLOAD')}
               />
@@ -200,9 +227,10 @@ export default function App() {
             </motion.div>
           )}
 
-          {step === 'REVIEW' && (
+          {step === 'MIDNIGHT' && (
             <motion.div key="midnight" initial={{ opacity: 0, y: 15, filter: "blur(8px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -15, filter: "blur(8px)" }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}>
               <MidnightProof 
+                manifest={docState.manifest!}
                 onBack={() => setStep('MANIFEST')}
               />
             </motion.div>
@@ -210,15 +238,28 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {error && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 text-red-500 px-6 py-3 rounded-full text-sm font-medium backdrop-blur-md z-50">
-          {error}
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] as const }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 text-red-500 px-6 py-3 rounded-full text-sm font-medium backdrop-blur-md z-50"
+          >
+            {error}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <footer className="fixed bottom-8 left-8 text-[9px] font-mono tracking-widest text-tertiary/40 uppercase z-50">
+      <motion.footer
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] as const }}
+        className="fixed bottom-8 left-8 text-[9px] font-mono tracking-widest text-tertiary/40 uppercase z-50"
+      >
         © 2026 Blackline Protocol • Selective Disclosure v1.0
-      </footer>
+      </motion.footer>
     </div>
   );
 }

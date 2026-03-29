@@ -1,20 +1,57 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, X, Shield, ArrowRight, Info, AlertCircle, ChevronLeft, FileText, Lock } from "lucide-react";
+import { Check, X, Shield, ArrowRight, Info, AlertCircle, ChevronLeft, FileText, Lock, User, Undo2, Redo2, MousePointer2 } from "lucide-react";
 import { Redaction } from "../types";
 import { cn } from "../lib/utils";
 
 interface RedactionReviewProps {
   text: string;
   redactions: Redaction[];
+  reviewerName: string;
+  reviewerEmail: string;
   onUpdateRedactions: (redactions: Redaction[]) => void;
+  onUpdateReviewer: (name: string, email: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, onBack }: RedactionReviewProps) {
+export function RedactionReview({ text, redactions, reviewerName, reviewerEmail, onUpdateRedactions, onUpdateReviewer, onNext, onBack }: RedactionReviewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [manualSelection, setManualSelection] = useState<{
+    text: string;
+    startIndex: number;
+    endIndex: number;
+    top: number;
+    left: number;
+  } | null>(null);
   
+  const [history, setHistory] = useState<Redaction[][]>([redactions]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  // Keyboard undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          if (historyIndex < history.length - 1) {
+            const nextIdx = historyIndex + 1;
+            setHistoryIndex(nextIdx);
+            onUpdateRedactions(history[nextIdx]);
+          }
+        } else {
+          if (historyIndex > 0) {
+            const prevIdx = historyIndex - 1;
+            setHistoryIndex(prevIdx);
+            onUpdateRedactions(history[prevIdx]);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyIndex, history, onUpdateRedactions]);
+
   // Sync scrolling between the two text panes
   const originalRef = useRef<HTMLDivElement>(null);
   const redactedRef = useRef<HTMLDivElement>(null);
@@ -25,9 +62,144 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
     }
   };
 
+  const handleUpdateAndPushHistory = (updated: Redaction[]) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(updated);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    onUpdateRedactions(updated);
+  };
+
   const handleStatusChange = (id: string, status: Redaction['status']) => {
     const updated = redactions.map(r => r.id === id ? { ...r, status } : r);
-    onUpdateRedactions(updated);
+    handleUpdateAndPushHistory(updated);
+  };
+  
+  const handleAcceptAll = () => {
+    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'accepted' as const } : r);
+    handleUpdateAndPushHistory(updated);
+  };
+  
+  const handleRejectAll = () => {
+    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'rejected' as const } : r);
+    handleUpdateAndPushHistory(updated);
+  };
+  
+  const undo = () => {
+    if (historyIndex > 0) {
+      const prevIdx = historyIndex - 1;
+      setHistoryIndex(prevIdx);
+      onUpdateRedactions(history[prevIdx]);
+    }
+  };
+
+  const redo = () => {
+    if (historyIndex < history.length - 1) {
+      const nextIdx = historyIndex + 1;
+      setHistoryIndex(nextIdx);
+      onUpdateRedactions(history[nextIdx]);
+    }
+  };
+
+  const handleSelectionChange = () => {
+    const textContainer = document.getElementById("original-text-container");
+    if (!textContainer || !originalRef.current) return;
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      setManualSelection(null);
+      return;
+    }
+
+    if (!textContainer.contains(sel.anchorNode)) {
+      setManualSelection(null);
+      return;
+    }
+
+    const range = sel.getRangeAt(0);
+    
+    // Traverse DOM to find exact character offset robustly, skipping injected UI labels
+    let currentStart = 0;
+    let currentEnd = 0;
+    let startFound = false;
+    let endFound = false;
+
+    const traverse = (node: Node) => {
+      if (startFound && endFound) return;
+      
+      // Skip injected UI elements so our character count exactly matches the raw text string
+      if (node.nodeType === Node.ELEMENT_NODE && (node as Element).hasAttribute('data-is-label')) {
+        return;
+      }
+      
+      if (node === range.startContainer) {
+        currentStart += range.startOffset;
+        startFound = true;
+      }
+      
+      if (node === range.endContainer) {
+        currentEnd += range.endOffset;
+        endFound = true;
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const len = (node.textContent || '').length;
+        if (!startFound && node !== range.startContainer) currentStart += len;
+        if (!endFound && node !== range.endContainer) currentEnd += len;
+      } else {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          traverse(node.childNodes[i]);
+        }
+      }
+    };
+
+    traverse(textContainer);
+
+    const finalStart = Math.min(currentStart, currentEnd);
+    const finalEnd = Math.max(currentStart, currentEnd);
+    const finalText = text.substring(finalStart, finalEnd);
+
+    if (finalText.trim().length === 0) {
+      setManualSelection(null);
+      return;
+    }
+
+    const rect = range.getBoundingClientRect();
+    const containerRect = originalRef.current.getBoundingClientRect();
+
+    setManualSelection({
+      text: finalText,
+      startIndex: finalStart,
+      endIndex: finalEnd,
+      top: rect.top - containerRect.top + originalRef.current.scrollTop - 40,
+      left: rect.left - containerRect.left + (rect.width / 2)
+    });
+  };
+
+  const addManualRedaction = (type: string) => {
+    if (!manualSelection) return;
+    
+    const { text: selText, startIndex, endIndex } = manualSelection;
+    
+    // Remove existing redactions that overlap with our manual selection
+    const nonOverlapping = redactions.filter(r => 
+      r.endIndex <= startIndex || r.startIndex >= endIndex
+    );
+
+    const newRedaction: Redaction = {
+      id: crypto.randomUUID(),
+      text: selText,
+      startIndex,
+      endIndex,
+      type,
+      confidence: 1.0,
+      status: 'manual',
+      reason: 'Manually added by reviewer'
+    };
+    
+    handleUpdateAndPushHistory([...nonOverlapping, newRedaction]);
+    setManualSelection(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   const renderOriginalText = () => {
@@ -55,9 +227,9 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
             layoutId={`orig-${redaction.id}`}
             onClick={() => setActiveId(redaction.id)}
             animate={{
-              backgroundColor: isAccepted ? "var(--color-primary)" : isSuggested ? "rgba(15, 17, 19, 0.05)" : "transparent",
-              color: isAccepted ? "var(--color-neutral)" : isSuggested ? "rgba(15, 17, 19, 0.6)" : "inherit",
-              borderColor: isAccepted ? "transparent" : "rgba(15, 17, 19, 0.3)"
+              backgroundColor: redaction.status === 'manual' ? "var(--color-accent)" : isAccepted ? "var(--color-primary)" : isSuggested ? "rgba(15, 17, 19, 0.05)" : "transparent",
+              color: (isAccepted || redaction.status === 'manual') ? "var(--color-neutral)" : isSuggested ? "rgba(15, 17, 19, 0.6)" : "inherit",
+              borderColor: (isAccepted || redaction.status === 'manual') ? "transparent" : "rgba(15, 17, 19, 0.3)"
             }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as const }}
             className={cn(
@@ -68,9 +240,10 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
             {redaction.text}
             {isSuggested && (
               <motion.span 
+                data-is-label="true"
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: activeId === redaction.id ? 1 : 0, y: activeId === redaction.id ? 0 : 5 }}
-                className="absolute -top-5 left-0 text-[7px] font-mono tracking-[0.2em] text-tertiary uppercase bg-white px-1.5 py-0.5 rounded shadow-sm border border-primary/10 group-hover/orig:opacity-100 group-hover/orig:y-0 transition-all duration-300 z-20"
+                className="absolute -top-5 left-0 text-[7px] font-mono tracking-[0.2em] text-tertiary uppercase bg-white px-1.5 py-0.5 rounded shadow-sm border border-primary/10 group-hover/orig:opacity-100 group-hover/orig:translate-y-0 transition-all duration-300 z-20 pointer-events-none select-none"
               >
                 {redaction.type}
               </motion.span>
@@ -185,7 +358,7 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
             className="group flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-tertiary hover:text-primary transition-colors"
           >
             <ChevronLeft className="w-3 h-3 transition-transform duration-300 group-hover:-translate-x-1" />
-            Back to Upload
+            Edit Policy
           </button>
           <h2 className="text-5xl md:text-6xl font-serif italic">Human Verification</h2>
           <p className="text-tertiary font-light text-lg max-w-2xl">
@@ -199,6 +372,14 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
           transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] as const }}
           className="flex items-center gap-6"
         >
+          <div className="flex items-center gap-2 bg-white border border-border rounded-full p-1.5 shadow-sm">
+             <button onClick={handleAcceptAll} disabled={pendingCount === 0} className="hover:bg-primary/5 px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest disabled:opacity-30 transition-colors">Accept All</button>
+             <div className="w-px h-4 bg-border" />
+             <button onClick={handleRejectAll} disabled={pendingCount === 0} className="hover:bg-primary/5 px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest disabled:opacity-30 transition-colors">Reject All</button>
+             <div className="w-px h-4 bg-border" />
+             <button onClick={undo} disabled={historyIndex === 0} className="p-1.5 hover:bg-primary/5 rounded-full disabled:opacity-30 transition-colors" title="Undo (Cmd+Z)"><Undo2 className="w-4 h-4" /></button>
+             <button onClick={redo} disabled={historyIndex === history.length - 1} className="p-1.5 hover:bg-primary/5 rounded-full disabled:opacity-30 transition-colors" title="Redo (Cmd+Shift+Z)"><Redo2 className="w-4 h-4" /></button>
+          </div>
           <motion.div 
             animate={{ backgroundColor: pendingCount === 0 ? "rgba(34, 197, 94, 0.1)" : "white" }}
             className="flex items-center gap-3 px-6 py-3 border border-border rounded-full shadow-sm transition-colors duration-500"
@@ -222,6 +403,28 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
         </motion.div>
       </div>
 
+      {/* Global Manual Override Banner */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] as const }}
+        className="mb-8 flex items-center gap-5 p-5 rounded-2xl bg-white border border-accent/20 shadow-sm relative overflow-hidden group/banner"
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/5 to-transparent -translate-x-full group-hover/banner:translate-x-full duration-[2s] transition-transform ease-in-out pointer-events-none" />
+        <div className="shrink-0 w-10 h-10 rounded-full bg-accent/5 flex items-center justify-center border border-accent/10 relative z-10">
+          <MousePointer2 className="w-5 h-5 text-accent group-hover/banner:scale-110 transition-transform duration-300" />
+        </div>
+        <div className="relative z-10 flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h4 className="text-[11px] font-mono uppercase tracking-widest text-accent font-bold mb-1">Targeted Override</h4>
+            <p className="text-[15px] font-serif text-tertiary leading-relaxed">
+               Notice an entity the AI missed? Highlight any string within the <span className="text-primary italic">Original Document</span> pane to snap a custom redaction to your release.
+            </p>
+          </div>
+          <span className="shrink-0 px-3 py-1 rounded bg-accent/5 border border-accent/10 text-[9px] font-mono uppercase tracking-widest text-accent">Instruction Rule</span>
+        </div>
+      </motion.div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start h-[70vh] min-h-[600px]">
         
         {/* Left Column: Original Text */}
@@ -232,21 +435,38 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
           className="lg:col-span-4 card-premium flex flex-col h-full bg-white shadow-sm border border-border overflow-hidden relative group"
         >
           <div className="absolute inset-0 bg-grid-pattern opacity-50 pointer-events-none" />
-          <div className="flex items-center justify-between p-6 border-b border-border bg-neutral/30 shrink-0 relative z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-6 border-b border-border bg-neutral/30 shrink-0 relative z-10 gap-3">
             <div className="flex items-center gap-3">
               <FileText className="w-4 h-4 text-tertiary group-hover:text-primary transition-colors duration-500" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-tertiary group-hover:text-primary transition-colors duration-500">Original Document</span>
+              <span className="block text-[10px] font-mono uppercase tracking-widest text-tertiary group-hover:text-primary transition-colors duration-500">Original Document</span>
             </div>
-            <span className="text-[9px] font-mono text-tertiary/40 uppercase tracking-widest">Read-Only</span>
+            <span className="text-[9px] font-mono text-tertiary/40 uppercase tracking-widest hidden sm:block">Analysis View</span>
           </div>
           <div 
             ref={originalRef}
             onScroll={(e) => handleScroll(e, redactedRef)}
+            onMouseUp={handleSelectionChange}
+            onKeyUp={handleSelectionChange}
             className="p-8 overflow-y-auto font-serif text-lg leading-[2] flex-1 relative z-10"
           >
-            <div className="whitespace-pre-wrap relative z-0">
+            <div id="original-text-container" className="whitespace-pre-wrap relative z-0">
               {renderOriginalText()}
             </div>
+            
+            <AnimatePresence>
+              {manualSelection && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95, filter: "blur(4px)" }}
+                  className="absolute z-50 flex items-center gap-1 bg-white border border-border rounded-lg shadow-xl p-1.5 backdrop-blur-md"
+                  style={{ top: manualSelection.top, left: manualSelection.left, x: "-50%" }}
+                >
+                  <div className="text-[9px] font-mono tracking-widest uppercase text-tertiary px-2 whitespace-nowrap hidden sm:block">Action:</div>
+                  <button onClick={() => addManualRedaction('manual')} className="bg-primary hover:bg-primary/90 text-white px-4 py-1.5 rounded text-[10px] font-mono uppercase tracking-widest transition-colors duration-200 shadow-sm border border-primary/10">Redact</button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
 
@@ -319,7 +539,9 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
                     <div className="grid grid-cols-2 gap-6 border-y border-border py-4">
                       <div className="space-y-1">
                         <div className="text-[9px] font-mono tracking-[0.2em] text-tertiary uppercase">Classification</div>
-                        <div className="text-xs font-medium uppercase tracking-widest text-primary">{activeRedaction.type}</div>
+                        <div className="text-xs font-medium uppercase tracking-widest text-primary">
+                          {activeRedaction.type === 'instruction' ? 'User Instruction' : activeRedaction.type === 'manual' ? 'Manual Override' : activeRedaction.type}
+                        </div>
                       </div>
                       <div className="space-y-1">
                         <div className="text-[9px] font-mono tracking-[0.2em] text-tertiary uppercase">Confidence</div>
@@ -374,6 +596,33 @@ export function RedactionReview({ text, redactions, onUpdateRedactions, onNext, 
                   </motion.div>
                 )}
               </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Reviewer Identity Card */}
+          <div className="card-premium flex flex-col bg-white border border-border shadow-sm shrink-0 overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border bg-neutral/30 shrink-0">
+              <div className="flex items-center gap-3 text-[10px] font-mono uppercase tracking-widest text-tertiary">
+                <User className="w-4 h-4 text-primary" />
+                <span>Reviewer Identity</span>
+              </div>
+              <span className="text-[9px] font-mono text-tertiary/40 uppercase tracking-widest">Optional</span>
+            </div>
+            <div className="p-6 space-y-3">
+              <input
+                type="text"
+                value={reviewerName}
+                onChange={(e) => onUpdateReviewer(e.target.value, reviewerEmail)}
+                placeholder="Name (e.g. Jane Smith)"
+                className="w-full bg-neutral/50 border border-primary/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/30 transition-all duration-300 placeholder:text-tertiary/40"
+              />
+              <input
+                type="email"
+                value={reviewerEmail}
+                onChange={(e) => onUpdateReviewer(reviewerName, e.target.value)}
+                placeholder="Email (e.g. jane@company.com)"
+                className="w-full bg-neutral/50 border border-primary/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/30 transition-all duration-300 placeholder:text-tertiary/40"
+              />
             </div>
           </div>
 

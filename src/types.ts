@@ -14,16 +14,19 @@ export interface DocumentState {
   redactedText: string;
   redactions: Redaction[];
   instructions: string;
+  reviewerName: string;
+  reviewerEmail: string;
   manifest?: ReleaseManifest;
 }
 
 export interface ReleaseManifest {
   hash: string;
   timestamp: string;
-  reviewer: string;
+  reviewerName: string;
+  reviewerEmail: string;
   policy: string;
   redactionCount: number;
   originalHash: string;
 }
 
-export type AppStep = 'LANDING' | 'UPLOAD' | 'REDACT' | 'REVIEW' | 'MANIFEST';
+export type AppStep = 'LANDING' | 'UPLOAD' | 'REDACT' | 'MIDNIGHT' | 'MANIFEST';
