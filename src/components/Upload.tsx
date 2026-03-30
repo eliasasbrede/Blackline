@@ -6,13 +6,23 @@ import { cn } from "../lib/utils";
 interface UploadProps {
   initialText?: string;
   initialInstructions?: string;
-  onNext: (text: string, instructions: string) => void;
+  onNext: (text: string, instructions: string, mode: 'redact' | 'substitute') => void;
   onBack: () => void;
 }
 
-export function Upload({ initialText = "", initialInstructions = "Redact all personal names, email addresses, and specific financial amounts.", onNext, onBack }: UploadProps) {
+export function Upload({ initialText = "", initialInstructions = "", onNext, onBack }: UploadProps) {
+  const DEFAULT_REDACT = "Redact all personal names, email addresses, and specific financial amounts.";
+  const DEFAULT_SUBSTITUTE = "Substitute all personal names, email addresses, and specific financial amounts with generic equivalents.";
+
   const [text, setText] = useState(initialText);
-  const [instructions, setInstructions] = useState(initialInstructions);
+  const [instructions, setInstructions] = useState(initialInstructions || DEFAULT_REDACT);
+  const [mode, setMode] = useState<'redact' | 'substitute'>('redact');
+
+  const handleModeChange = (newMode: 'redact' | 'substitute') => {
+    if (newMode === 'substitute' && instructions === DEFAULT_REDACT) setInstructions(DEFAULT_SUBSTITUTE);
+    if (newMode === 'redact' && instructions === DEFAULT_SUBSTITUTE) setInstructions(DEFAULT_REDACT);
+    setMode(newMode);
+  };
   const [isDragging, setIsDragging] = useState(false);
 
   const MAX_FILE_SIZE = 100_000; // 100KB
@@ -76,7 +86,9 @@ export function Upload({ initialText = "", initialInstructions = "Redact all per
             <ChevronLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" />
             Back to Home
           </button>
-          <h2 className="text-4xl md:text-5xl font-serif italic">Initialize Redaction</h2>
+          <h2 className="text-4xl md:text-5xl font-serif italic">
+            Initialize {mode === 'redact' ? 'Redaction' : 'Substitution'}
+          </h2>
         </motion.div>
         <motion.div 
           initial={{ opacity: 0, x: 20 }}
@@ -115,26 +127,63 @@ export function Upload({ initialText = "", initialInstructions = "Redact all per
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
                 className="absolute inset-0 w-full h-full resize-none bg-neutral/50 border border-primary/10 rounded-xl p-6 text-base leading-relaxed focus:outline-none focus:border-primary/30 focus:bg-white transition-all duration-500 font-sans shadow-inner"
-                placeholder="Describe exactly what should be redacted... (e.g., 'Redact all personal names, email addresses, and specific financial amounts.')"
+                placeholder={mode === 'redact' ? "Describe exactly what should be redacted... (e.g., 'Redact all personal names...')" : "Describe exactly what should be substituted... (e.g., 'Substitute all personal names...')"}
               />
               <div className="absolute bottom-4 right-4 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 pointer-events-none">
                 <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(15,17,19,0.5)]" />
               </div>
             </div>
+
+            <div className="mt-6 shrink-0">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-tertiary">Output Mode</span>
+              </div>
+              <div className="flex p-1 bg-neutral/50 border border-primary/10 rounded-lg">
+                <button
+                  onClick={() => handleModeChange('redact')}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-medium uppercase tracking-widest rounded-md transition-all duration-300",
+                    mode === 'redact' ? "bg-white text-primary shadow-sm" : "text-tertiary hover:text-primary hover:bg-white/20"
+                  )}
+                >
+                  Redact
+                </button>
+                <button
+                  onClick={() => handleModeChange('substitute')}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-medium uppercase tracking-widest rounded-md transition-all duration-300",
+                    mode === 'substitute' ? "bg-white text-primary shadow-sm" : "text-tertiary hover:text-primary hover:bg-white/20"
+                  )}
+                >
+                  Substitute
+                </button>
+              </div>
+            </div>
+
             <div className="mt-6 shrink-0 flex items-start gap-3 text-tertiary/60 bg-primary/5 p-4 rounded-xl border border-primary/5 transition-colors duration-500 group-hover/config:bg-primary/[0.07]">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-primary/60" />
-              <p className="text-[10px] leading-relaxed italic">
-                The NLP engine will use these parameters to identify and suggest redactions. You will review all suggestions before finalization.
-              </p>
+              <div className="text-[10px] leading-relaxed">
+                {mode === 'redact' ? (
+                  <p className="italic">
+                    <strong>Use Case:</strong> Strict compliance for legal and public disclosure. Sensitive data will be fully stripped and marked as [REDACTED].
+                  </p>
+                ) : (
+                  <p className="italic">
+                    <strong>Use Case:</strong> Sanitizing documents for AI training or downstream analytics. Sensitive entities are replaced with semantically sensible but safe equivalents to preserve contextual flow without leaking data.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
           <button 
-            onClick={() => onNext(text, instructions)}
+            onClick={() => onNext(text, instructions, mode)}
             disabled={!text.trim()}
             className="btn-primary w-full flex items-center justify-between p-6 disabled:opacity-50 disabled:cursor-not-allowed group shadow-lg shadow-primary/10 shrink-0 relative overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-primary/20 active:scale-[0.98]"
           >
-            <span className="font-serif italic text-lg relative z-10">Analyze Document</span>
+            <span className="font-serif italic text-lg relative z-10">
+              Analyze for {mode === 'redact' ? 'Redaction' : 'Substitution'}
+            </span>
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors duration-500 relative z-10 group-hover:scale-110">
               <ArrowRight className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1" />
             </div>

@@ -18,6 +18,7 @@ import { Loader2, ShieldAlert } from "lucide-react";
 export default function App() {
   const [step, setStep] = useState<AppStep>('LANDING');
   const [docState, setDocState] = useState<DocumentState>({
+    mode: 'redact',
     originalText: "",
     redactedText: "",
     redactions: [],
@@ -37,6 +38,7 @@ export default function App() {
 
   const handleStart = () => {
     setDocState({
+      mode: 'redact',
       originalText: "",
       redactedText: "",
       redactions: [],
@@ -47,13 +49,14 @@ export default function App() {
     setStep('UPLOAD');
   };
   
-  const handleUploadNext = async (text: string, instructions: string) => {
+  const handleUploadNext = async (text: string, instructions: string, mode: 'redact' | 'substitute') => {
     setIsLoading(true);
     setError(null);
     try {
-      const suggestions = await suggestRedactions(text, instructions);
+      const suggestions = await suggestRedactions(text, instructions, mode);
       setDocState(prev => ({
         ...prev,
+        mode,
         originalText: text,
         instructions,
         redactions: suggestions
@@ -78,7 +81,9 @@ export default function App() {
       const acceptedRedactions = docState.redactions.filter(r => r.status === 'accepted' || r.status === 'manual');
       
       // Generate redacted text
-      const sortedRedactions = [...acceptedRedactions].sort((a, b) => a.startIndex - b.startIndex);
+      // We only consider accepted rules or manual rules that don't have action === 'keep'
+      const activeRedactions = acceptedRedactions.filter(r => r.action !== 'keep');
+      const sortedRedactions = [...activeRedactions].sort((a, b) => a.startIndex - b.startIndex);
       let redactedText = "";
       let lastIndex = 0;
       
@@ -86,7 +91,11 @@ export default function App() {
         if (redaction.startIndex > lastIndex) {
           redactedText += docState.originalText.substring(lastIndex, redaction.startIndex);
         }
-        redactedText += "[REDACTED]";
+        if (redaction.action === 'substitute' && redaction.proposedSubstitute) {
+          redactedText += redaction.proposedSubstitute;
+        } else {
+          redactedText += "[REDACTED]";
+        }
         lastIndex = redaction.endIndex;
       });
       
@@ -110,9 +119,10 @@ export default function App() {
         ? `${docState.reviewerName} <${docState.reviewerEmail}>`
         : docState.reviewerEmail || "Anonymous Reviewer";
 
-      const finalDocumentWithHash = `${redactedText}\n\n=================================================================\nCRYPTOGRAPHIC PROOF OF DISCLOSURE\n=================================================================\nSHA-256 HASH : ${finalHash}\nORIGINAL HASH: ${originalHash}\nTIMESTAMP    : ${timestamp}\nREVIEWER     : ${reviewerLine}\n=================================================================`;
+      const finalDocumentWithHash = `${redactedText}\n\n=================================================================\nCRYPTOGRAPHIC PROOF OF DISCLOSURE\n=================================================================\nMODE         : ${docState.mode.toUpperCase()}\nSHA-256 HASH : ${finalHash}\nORIGINAL HASH: ${originalHash}\nTIMESTAMP    : ${timestamp}\nREVIEWER     : ${reviewerLine}\n=================================================================`;
 
       const manifest: ReleaseManifest = {
+        mode: docState.mode,
         hash: finalHash,
         originalHash: originalHash,
         timestamp: timestamp,
@@ -204,6 +214,7 @@ export default function App() {
           {step === 'REDACT' && (
             <motion.div key="redact" initial={{ opacity: 0, y: 15, filter: "blur(8px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} exit={{ opacity: 0, y: -15, filter: "blur(8px)" }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] as const }}>
               <RedactionReview 
+                globalMode={docState.mode}
                 text={docState.originalText}
                 redactions={docState.redactions}
                 reviewerName={docState.reviewerName}

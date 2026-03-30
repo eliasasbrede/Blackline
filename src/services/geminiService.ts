@@ -8,15 +8,16 @@ interface RedactionResponse {
     type: string;
     confidence: number;
     reason: string;
+    proposedSubstitute?: string;
   }>;
   error?: string;
 }
 
-export async function suggestRedactions(text: string, instructions: string): Promise<Redaction[]> {
+export async function suggestRedactions(text: string, instructions: string, mode: 'redact' | 'substitute'): Promise<Redaction[]> {
   const response = await fetch("/api/redact", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, instructions }),
+    body: JSON.stringify({ text, instructions, mode }),
   });
 
   if (!response.ok) {
@@ -47,6 +48,8 @@ export async function suggestRedactions(text: string, instructions: string): Pro
     type: r.type,
     confidence: r.confidence,
     status: "suggested" as const,
+    action: mode === 'substitute' ? 'substitute' : 'redact',
+    proposedSubstitute: r.proposedSubstitute,
     reason: r.reason,
   }));
 }

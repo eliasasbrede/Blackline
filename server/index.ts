@@ -27,6 +27,7 @@ if (GEMINI_API_KEY) {
 interface RedactRequest {
   text: string;
   instructions: string;
+  mode: 'redact' | 'substitute';
 }
 
 interface RedactionResult {
@@ -36,26 +37,32 @@ interface RedactionResult {
   type: string;
   confidence: number;
   reason: string;
+  proposedSubstitute?: string;
 }
 
 // ---------------------------------------------------------------------------
 // System prompt — instructs Gemini to return structured redaction spans
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are Blackline, a precision document redaction engine. You analyze text and identify exact spans that must be redacted according to the user's disclosure policy.
+const SYSTEM_PROMPT = `You are Blackline, a precision document redaction engine. You analyze text and identify exact spans that contain sensitive data according to the user's disclosure policy.
 
 Your task has TWO distinct parts:
-1. EXACT TERMS: Identify any specific literal words, names, or short phrases the user EXPLICITLY requested to be redacted system-wide (e.g. "Cardano", "Project Falcon"). Extract them EXACTLY as written into the exact_terms_to_redact array.
+1. EXACT TERMS: Identify any specific literal words, names, or short phrases the user EXPLICITLY requested to be targeted system-wide (e.g. "Cardano", "Project Falcon"). Extract them EXACTLY as written into the exact_terms_to_redact array of objects.
 2. CONTEXTUAL REDACTIONS: Identify other sensitive entities (like emails, phone numbers, or types of people's names if generally requested) that fall under the policy but weren't given as exact explicit literals.
 
 STRICT RULES:
 1. Do not hallucinate exact terms. Only use strings explicitly asked to be removed globally.
-2. Do not misclassify generic document titles (e.g. "Cardano Basics") as contextual person names. If they asked to redact "Cardano", put "Cardano" in exact_terms_to_redact and ignore "Cardano Basics" contextually unless it explicitly violates another rule.
+2. Do not misclassify generic document titles (e.g. "Cardano Basics") as contextual person names. If they asked to target "Cardano", put "Cardano" in exact_terms_to_redact and ignore "Cardano Basics" contextually unless it explicitly violates another rule.
 3. NEVER over-redact. Never add categories the user did not ask for.
 4. Return 0-based character indices for contextual_redactions.
+{{SUBSTITUTION_RULES}}
 
 RESPONSE FORMAT — return ONLY this strict JSON structure, and absolutely nothing else:
 {
-  "exact_terms_to_redact": ["Cardano", "Project Falcon"],
+  "exact_terms_to_redact": [
+    {
+      "term": "Cardano"{{SUBSTITUTE_FIELD_EXACT}}
+    }
+  ],
   "contextual_redactions": [
     {
       "text": "exact substring from document",
@@ -63,7 +70,7 @@ RESPONSE FORMAT — return ONLY this strict JSON structure, and absolutely nothi
       "endIndex": 10,
       "type": "person",
       "confidence": 0.95,
-      "reason": "Identified per disclosure policy"
+      "reason": "Identified per disclosure policy"{{SUBSTITUTE_FIELD}}
     }
   ]
 }`;
@@ -71,7 +78,7 @@ RESPONSE FORMAT — return ONLY this strict JSON structure, and absolutely nothi
 // ---------------------------------------------------------------------------
 // Mock fallback — used when GEMINI_API_KEY is not set
 // ---------------------------------------------------------------------------
-function mockRedact(text: string, instructions: string): RedactionResult[] {
+function mockRedact(text: string, instructions: string, mode: 'redact' | 'substitute'): RedactionResult[] {
   const redactions: RedactionResult[] = [];
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const amountRegex = /\$\d+(?:,\d{3})*(?:\.\d{2})?/g;
@@ -91,28 +98,30 @@ function mockRedact(text: string, instructions: string): RedactionResult[] {
     const regex = new RegExp(escapedText, 'gi');
     let match;
     while ((match = regex.exec(text)) !== null) {
+      const getMockSubstitute = () => match![0].includes('@') ? 'an email' : match![0].startsWith('$') || /\d/.test(match![0]) ? 'an amount' : 'a requested entity';
       redactions.push({
         text: match[0],
         startIndex: match.index,
         endIndex: match.index + match[0].length,
         type: "instruction",
         confidence: 1.0,
-        reason: "[MOCK ENGINE] Explicit term extracted from user instruction fallback."
+        reason: "[MOCK ENGINE] Explicit term extracted from user instruction fallback.",
+        proposedSubstitute: mode === 'substitute' ? getMockSubstitute() : undefined,
       });
     }
   }
 
   let match: RegExpExecArray | null;
   while ((match = emailRegex.exec(text)) !== null) {
-    redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "email", confidence: 0.99, reason: "Identified as an email address." });
+    redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "email", confidence: 0.99, reason: "Identified as an email address.", proposedSubstitute: mode === 'substitute' ? "internal.user@domain.com" : undefined });
   }
   while ((match = amountRegex.exec(text)) !== null) {
-    redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "financial", confidence: 0.95, reason: "Identified as a financial amount." });
+    redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "financial", confidence: 0.95, reason: "Identified as a financial amount.", proposedSubstitute: mode === 'substitute' ? "a mapped financial figure" : undefined });
   }
   while ((match = nameRegex.exec(text)) !== null) {
     const overlap = redactions.some((r) => match!.index < r.endIndex && match!.index + match![0].length > r.startIndex);
     if (!overlap) {
-      redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "person", confidence: 0.85, reason: "Identified as a personal name." });
+      redactions.push({ text: match[0], startIndex: match.index, endIndex: match.index + match[0].length, type: "person", confidence: 0.85, reason: "Identified as a personal name.", proposedSubstitute: mode === 'substitute' ? "a project lead" : undefined });
     }
   }
   return redactions.sort((a, b) => a.startIndex - b.startIndex);
@@ -174,6 +183,7 @@ function validateRedaction(r: any, text: string): RedactionResult | null {
     type: VALID_TYPES.has(r.type) ? r.type : "custom",
     confidence: Math.min(1, Math.max(0, typeof r.confidence === "number" ? r.confidence : 0.8)),
     reason: typeof r.reason === "string" && r.reason.length > 0 ? r.reason : "Identified as sensitive per disclosure policy.",
+    proposedSubstitute: typeof r.proposedSubstitute === "string" ? r.proposedSubstitute : undefined
   };
 }
 
@@ -210,7 +220,7 @@ function deduplicateOverlaps(redactions: RedactionResult[]): RedactionResult[] {
 // ---------------------------------------------------------------------------
 // Gemini redaction engine
 // ---------------------------------------------------------------------------
-async function geminiRedact(text: string, instructions: string): Promise<RedactionResult[]> {
+async function geminiRedact(text: string, instructions: string, mode: 'redact' | 'substitute'): Promise<RedactionResult[]> {
   if (!ai) throw new Error("Gemini AI client not initialized");
 
   const userPrompt = `DISCLOSURE POLICY:
@@ -219,12 +229,22 @@ ${instructions}
 DOCUMENT TO ANALYZE (${text.length} characters):
 ${text}`;
 
+  let finalSystemPrompt = SYSTEM_PROMPT.replace('{{SUBSTITUTION_RULES}}', mode === 'substitute' ? 
+`5. MODE IS SUBSTITUTE: You MUST invent a safe, semantic substitute phrase for every entity that preserves grammatical correctness but obscures the real data. Examples: a name -> "a senior advisor", a company -> "a financial institution", an amount -> "a multi-million currency amount".` : '');
+
+  finalSystemPrompt = finalSystemPrompt.replace('{{SUBSTITUTE_FIELD}}', mode === 'substitute' ? 
+`,\n      "proposedSubstitute": "a senior advisor"` : '');
+
+  finalSystemPrompt = finalSystemPrompt.replace('{{SUBSTITUTE_FIELD_EXACT}}', mode === 'substitute' ? 
+`,\n      "proposedSubstitute": "a blockchain platform"` : '');
+
+
   const response = await ai.models.generateContent({
     model: GEMINI_MODEL,
     contents: userPrompt,
     config: {
-      systemInstruction: SYSTEM_PROMPT,
-      temperature: 0.1,
+      systemInstruction: finalSystemPrompt,
+      temperature: mode === 'substitute' ? 0.3 : 0.1,
       topP: 0.95,
       responseMimeType: "application/json",
     },
@@ -248,7 +268,7 @@ ${text}`;
   }
 
   // Extract redactions arrays
-  const exactTerms: string[] = Array.isArray(parsed.exact_terms_to_redact) ? parsed.exact_terms_to_redact : [];
+  const exactTerms: any[] = Array.isArray(parsed.exact_terms_to_redact) ? parsed.exact_terms_to_redact : [];
   const rawContextual: any[] = Array.isArray(parsed.contextual_redactions) 
     ? parsed.contextual_redactions 
     : Array.isArray(parsed.redactions) ? parsed.redactions : [];
@@ -257,12 +277,22 @@ ${text}`;
 
   // Phase 1: Global Exact Instruction Targets
   const processedTerms = new Set<string>();
-  for (const term of exactTerms) {
-    if (typeof term !== 'string' || term.trim().length === 0) continue;
-    if (processedTerms.has(term)) continue;
-    processedTerms.add(term);
+  for (const item of exactTerms) {
+    let termStr = "";
+    let propSub: string | undefined = undefined;
 
-    const escapedText = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (typeof item === 'string') {
+      termStr = item; // Fallback in case AI still returns string
+    } else if (typeof item === 'object' && item !== null && item.term) {
+      termStr = item.term;
+      propSub = item.proposedSubstitute;
+    }
+
+    if (typeof termStr !== 'string' || termStr.trim().length === 0) continue;
+    if (processedTerms.has(termStr)) continue;
+    processedTerms.add(termStr);
+
+    const escapedText = termStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escapedText, 'gi'); // Case-insensitive global sweep
     let match;
     while ((match = regex.exec(text)) !== null) {
@@ -272,7 +302,8 @@ ${text}`;
         endIndex: match.index + match[0].length,
         type: "instruction",
         confidence: 1.0,
-        reason: "Explicit term specified in user instruction."
+        reason: "Explicit term specified in user instruction.",
+        proposedSubstitute: mode === 'substitute' ? (propSub || "a sensitive entity") : undefined
       });
     }
   }
@@ -302,7 +333,7 @@ ${text}`;
 // ---------------------------------------------------------------------------
 app.post("/api/redact", async (req, res) => {
   try {
-    const { text, instructions } = req.body as RedactRequest;
+    const { text, instructions, mode = 'redact' } = req.body as RedactRequest;
 
     // Input validation
     if (!text || typeof text !== "string") {
@@ -326,12 +357,12 @@ app.post("/api/redact", async (req, res) => {
     let redactions: RedactionResult[];
 
     if (ai) {
-      console.log(`[api] Gemini redaction request — ${text.length} chars, policy: "${instructions.substring(0, 80)}..."`);
-      redactions = await geminiRedact(text, instructions);
+      console.log(`[api] Gemini redaction request — ${text.length} chars, mode: ${mode}, policy: "${instructions.substring(0, 80)}..."`);
+      redactions = await geminiRedact(text, instructions, mode);
     } else {
-      console.log(`[api] Mock redaction (no GEMINI_API_KEY) — ${text.length} chars`);
+      console.log(`[api] Mock redaction (no GEMINI_API_KEY) — ${text.length} chars, mode: ${mode}`);
       await new Promise((resolve) => setTimeout(resolve, 800));
-      redactions = mockRedact(text, instructions);
+      redactions = mockRedact(text, instructions, mode);
       
       // We must dedupe mock redactions too because we just added instruction parsing to it!
       redactions = deduplicateOverlaps(redactions);

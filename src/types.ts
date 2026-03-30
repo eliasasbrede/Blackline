@@ -6,10 +6,13 @@ export interface Redaction {
   type: string; // e.g., "person", "email", "date", "custom"
   confidence: number;
   status: 'suggested' | 'accepted' | 'rejected' | 'manual';
+  action?: 'redact' | 'substitute' | 'keep';
+  proposedSubstitute?: string;
   reason?: string;
 }
 
 export interface DocumentState {
+  mode: 'redact' | 'substitute';
   originalText: string;
   redactedText: string;
   redactions: Redaction[];
@@ -20,6 +23,7 @@ export interface DocumentState {
 }
 
 export interface ReleaseManifest {
+  mode: 'redact' | 'substitute';
   hash: string;
   timestamp: string;
   reviewerName: string;

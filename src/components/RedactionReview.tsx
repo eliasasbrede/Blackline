@@ -5,6 +5,7 @@ import { Redaction } from "../types";
 import { cn } from "../lib/utils";
 
 interface RedactionReviewProps {
+  globalMode: 'redact' | 'substitute';
   text: string;
   redactions: Redaction[];
   reviewerName: string;
@@ -15,7 +16,7 @@ interface RedactionReviewProps {
   onBack: () => void;
 }
 
-export function RedactionReview({ text, redactions, reviewerName, reviewerEmail, onUpdateRedactions, onUpdateReviewer, onNext, onBack }: RedactionReviewProps) {
+export function RedactionReview({ globalMode, text, redactions, reviewerName, reviewerEmail, onUpdateRedactions, onUpdateReviewer, onNext, onBack }: RedactionReviewProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [manualSelection, setManualSelection] = useState<{
     text: string;
@@ -70,18 +71,24 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
     onUpdateRedactions(updated);
   };
 
-  const handleStatusChange = (id: string, status: Redaction['status']) => {
-    const updated = redactions.map(r => r.id === id ? { ...r, status } : r);
+  const handleActionChange = (id: string, action: Redaction['action']) => {
+    const updated = redactions.map(r => r.id === id ? { ...r, status: 'accepted' as const, action } : r);
     handleUpdateAndPushHistory(updated);
+  };
+
+  const handleSubstituteChange = (id: string, proposedSubstitute: string) => {
+    const updated = redactions.map(r => r.id === id ? { ...r, proposedSubstitute } : r);
+    // Don't push to history on every keystroke, just update the current state
+    onUpdateRedactions(updated);
   };
   
   const handleAcceptAll = () => {
-    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'accepted' as const } : r);
+    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'accepted' as const, action: globalMode } : r);
     handleUpdateAndPushHistory(updated);
   };
   
-  const handleRejectAll = () => {
-    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'rejected' as const } : r);
+  const handleKeepAll = () => {
+    const updated = redactions.map(r => r.status === 'suggested' ? { ...r, status: 'accepted' as const, action: 'keep' as const } : r);
     handleUpdateAndPushHistory(updated);
   };
   
@@ -194,6 +201,8 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
       type,
       confidence: 1.0,
       status: 'manual',
+      action: globalMode,
+      proposedSubstitute: globalMode === 'substitute' ? 'a sensitive entity' : undefined,
       reason: 'Manually added by reviewer'
     };
     
@@ -218,9 +227,9 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
 
       const isAccepted = redaction.status === 'accepted' || redaction.status === 'manual';
       const isSuggested = redaction.status === 'suggested';
-      const isRejected = redaction.status === 'rejected';
+      const isKept = isAccepted && redaction.action === 'keep';
 
-      if (!isRejected) {
+      if (!isKept) {
         result.push(
           <motion.span
             key={`orig-${redaction.id}`}
@@ -288,20 +297,22 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
 
       const isAccepted = redaction.status === 'accepted' || redaction.status === 'manual';
       const isSuggested = redaction.status === 'suggested';
-      const isRejected = redaction.status === 'rejected';
+      const isKept = isAccepted && redaction.action === 'keep';
 
-      if (isAccepted) {
+      if (isAccepted && !isKept) {
+        const displayText = redaction.action === 'substitute' ? (redaction.proposedSubstitute || "[SUBSTITUTED]") : "[REDACTED]";
         result.push(
           <motion.span
             key={`redact-${redaction.id}`}
             layoutId={`redact-${redaction.id}`}
             onClick={() => setActiveId(redaction.id)}
             className={cn(
-              "relative inline-block cursor-pointer rounded-sm px-1 mx-0.5 redaction-block group/redact",
+              "relative inline-block cursor-pointer rounded-sm px-1 mx-0.5 group/redact",
+              redaction.action === 'substitute' ? "redaction-block-substitute" : "redaction-block",
               activeId === redaction.id ? "ring-2 ring-primary/20 ring-offset-2 ring-offset-neutral" : ""
             )}
           >
-            {redaction.text}
+            {displayText}
             <span className="absolute inset-0 bg-primary opacity-0 group-hover/redact:opacity-10 transition-opacity duration-300 rounded-sm pointer-events-none" />
           </motion.span>
         );
@@ -375,7 +386,7 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
           <div className="flex items-center gap-2 bg-white border border-border rounded-full p-1.5 shadow-sm">
              <button onClick={handleAcceptAll} disabled={pendingCount === 0} className="hover:bg-primary/5 px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest disabled:opacity-30 transition-colors">Accept All</button>
              <div className="w-px h-4 bg-border" />
-             <button onClick={handleRejectAll} disabled={pendingCount === 0} className="hover:bg-primary/5 px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest disabled:opacity-30 transition-colors">Reject All</button>
+             <button onClick={handleKeepAll} disabled={pendingCount === 0} className="hover:bg-primary/5 px-4 py-1.5 rounded-full text-[10px] font-mono uppercase tracking-widest disabled:opacity-30 transition-colors">Keep All</button>
              <div className="w-px h-4 bg-border" />
              <button onClick={undo} disabled={historyIndex === 0} className="p-1.5 hover:bg-primary/5 rounded-full disabled:opacity-30 transition-colors" title="Undo (Cmd+Z)"><Undo2 className="w-4 h-4" /></button>
              <button onClick={redo} disabled={historyIndex === history.length - 1} className="p-1.5 hover:bg-primary/5 rounded-full disabled:opacity-30 transition-colors" title="Redo (Cmd+Shift+Z)"><Redo2 className="w-4 h-4" /></button>
@@ -559,28 +570,56 @@ export function RedactionReview({ text, redactions, reviewerName, reviewerEmail,
                       </div>
                     </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className="flex gap-2 pt-2">
                       <button 
-                        onClick={() => handleStatusChange(activeRedaction.id, 'accepted')}
+                        onClick={() => handleActionChange(activeRedaction.id, 'redact')}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border transition-all duration-300 text-[10px] uppercase tracking-widest font-medium shadow-sm active:scale-[0.98] group/btn",
-                          activeRedaction.status === 'accepted' ? "bg-primary text-neutral border-primary shadow-md shadow-primary/20" : "bg-white border-border hover:border-primary/30 hover:bg-neutral/50"
+                          activeRedaction.status !== 'suggested' && activeRedaction.action === 'redact' ? "bg-primary text-neutral border-primary shadow-md shadow-primary/20" : "bg-white border-border hover:border-primary/30 hover:bg-neutral/50"
                         )}
                       >
-                        <Check className={cn("w-3 h-3 transition-transform duration-300", activeRedaction.status !== 'accepted' && "group-hover/btn:scale-110")} />
-                        Approve
+                        Redact
                       </button>
                       <button 
-                        onClick={() => handleStatusChange(activeRedaction.id, 'rejected')}
+                        onClick={() => handleActionChange(activeRedaction.id, 'substitute')}
                         className={cn(
                           "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border transition-all duration-300 text-[10px] uppercase tracking-widest font-medium shadow-sm active:scale-[0.98] group/btn",
-                          activeRedaction.status === 'rejected' ? "bg-destructive text-white border-destructive shadow-md shadow-destructive/20" : "bg-white border-border hover:border-destructive/30 hover:bg-red-50 hover:text-destructive"
+                          activeRedaction.status !== 'suggested' && activeRedaction.action === 'substitute' ? "bg-accent text-white border-accent shadow-md shadow-accent/20" : "bg-white border-border hover:border-accent/30 hover:bg-neutral/50"
                         )}
                       >
-                        <X className={cn("w-3 h-3 transition-transform duration-300", activeRedaction.status !== 'rejected' && "group-hover/btn:scale-110")} />
-                        Reject
+                        Substitute
+                      </button>
+                      <button 
+                        onClick={() => handleActionChange(activeRedaction.id, 'keep')}
+                        className={cn(
+                          "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border transition-all duration-300 text-[10px] uppercase tracking-widest font-medium shadow-sm active:scale-[0.98] group/btn",
+                          activeRedaction.status !== 'suggested' && activeRedaction.action === 'keep' ? "bg-neutral text-primary border-primary shadow-md shadow-primary/10" : "bg-white border-border hover:border-border/80 hover:bg-neutral/50 text-tertiary hover:text-primary"
+                        )}
+                      >
+                        <X className="w-3 h-3 transition-transform duration-300 group-hover/btn:scale-110" />
+                        Keep
                       </button>
                     </div>
+
+                    <AnimatePresence>
+                      {activeRedaction.action === 'substitute' && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-2 overflow-hidden"
+                        >
+                          <div className="text-[9px] font-mono tracking-[0.2em] text-tertiary uppercase mt-4">Semantic Substitute</div>
+                          <input
+                            type="text"
+                            value={activeRedaction.proposedSubstitute || ''}
+                            onChange={(e) => handleSubstituteChange(activeRedaction.id, e.target.value)}
+                            placeholder="e.g. 'a financial institution'"
+                            className="w-full bg-neutral/50 border border-primary/20 focus:border-accent focus:ring-1 focus:ring-accent/20 rounded-xl px-4 py-3 text-sm text-primary transition-all duration-300 placeholder:text-tertiary/40 font-mono shadow-inner"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 ) : (
                   <motion.div 

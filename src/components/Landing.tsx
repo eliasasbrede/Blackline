@@ -40,7 +40,7 @@ export function Header({ onHome, onRedact, isLanding = false }: { onHome?: () =>
         <button onClick={() => scrollToSection('security')} className="text-[11px] font-mono uppercase tracking-[0.2em] text-tertiary hover:text-primary transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[1px] after:bg-primary after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left">Security</button>
         <button onClick={() => scrollToSection('enterprise')} className="text-[11px] font-mono uppercase tracking-[0.2em] text-tertiary hover:text-primary transition-colors relative after:absolute after:bottom-[-4px] after:left-0 after:w-full after:h-[1px] after:bg-primary after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:duration-300 after:origin-left">Enterprise</button>
         {onRedact && (
-          <button onClick={onRedact} className="text-[11px] font-mono uppercase tracking-[0.2em] text-primary font-bold hover:opacity-70 transition-opacity">Redact</button>
+          <button onClick={onRedact} className="text-[11px] font-mono uppercase tracking-[0.2em] text-primary font-bold hover:opacity-70 transition-opacity">Redact / Substitute</button>
         )}
       </nav>
       
@@ -68,7 +68,7 @@ export function Header({ onHome, onRedact, isLanding = false }: { onHome?: () =>
               <button onClick={() => scrollToSection('security')} className="text-sm font-mono uppercase tracking-widest text-left hover:text-primary transition-colors">Security</button>
               <button onClick={() => scrollToSection('enterprise')} className="text-sm font-mono uppercase tracking-widest text-left hover:text-primary transition-colors">Enterprise</button>
               {onRedact && (
-                <button onClick={() => { onRedact(); setIsMenuOpen(false); }} className="text-sm font-mono uppercase tracking-widest text-left text-primary font-bold">Redact</button>
+                <button onClick={() => { onRedact(); setIsMenuOpen(false); }} className="text-sm font-mono uppercase tracking-widest text-left text-primary font-bold">Redact / Substitute</button>
               )}
               <hr className="border-primary/5" />
               <button onClick={() => { if(onHome) onHome(); setIsMenuOpen(false); }} className="text-sm font-mono uppercase tracking-widest text-left hover:text-primary transition-colors">Home</button>
@@ -82,6 +82,7 @@ export function Header({ onHome, onRedact, isLanding = false }: { onHome?: () =>
 
 export function Landing({ onStart }: { onStart: () => void }) {
   const [demoStep, setDemoStep] = useState<'original' | 'review' | 'final'>('original');
+  const [demoMode, setDemoMode] = useState<'redact' | 'substitute'>('redact');
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -114,12 +115,12 @@ export function Landing({ onStart }: { onStart: () => void }) {
             </motion.div>
             
             <motion.h1 variants={itemVariants} className="text-6xl md:text-7xl lg:text-8xl font-serif leading-[0.9] mb-8 italic">
-              Selective <br />
-              <span className="text-tertiary/40">Disclosure.</span>
+              Selective <span className="text-tertiary/40">Disclosure.</span><br />
+              Secure <span className="text-tertiary/40">Reuse.</span>
             </motion.h1>
             
             <motion.p variants={itemVariants} className="text-lg md:text-xl text-tertiary max-w-lg leading-relaxed font-light mb-10">
-              The industry standard for privacy-first document release. Redact sensitive intelligence with AI precision and generate cryptographic proofs of integrity.
+              The industry standard for privacy-first document release. Redact sensitive intelligence for public release, or substitute entities for safe enterprise AI ingestion—enforced by verifiable cryptographic proofs.
             </motion.p>
             
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4">
@@ -147,9 +148,31 @@ export function Landing({ onStart }: { onStart: () => void }) {
               <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl opacity-50 pointer-events-none transition-opacity duration-500 group-hover/demo:opacity-100" />
               
               <div className="flex justify-between items-center mb-4 relative z-10">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                  <span className="text-[9px] font-mono uppercase tracking-widest text-tertiary">Live Demo</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-tertiary hidden sm:inline">Live Demo</span>
+                  </div>
+                  <div className="flex bg-neutral/80 backdrop-blur-sm rounded-full p-0.5 border border-primary/5 shadow-inner">
+                    <button 
+                      onClick={() => setDemoMode('redact')}
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[8px] font-mono uppercase tracking-widest transition-all",
+                        demoMode === 'redact' ? "bg-primary text-neutral shadow-sm" : "text-tertiary hover:text-primary"
+                      )}
+                    >
+                      Redact
+                    </button>
+                    <button 
+                      onClick={() => setDemoMode('substitute')}
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[8px] font-mono uppercase tracking-widest transition-all",
+                        demoMode === 'substitute' ? "bg-primary text-neutral shadow-sm" : "text-tertiary hover:text-primary"
+                      )}
+                    >
+                      Substitute
+                    </button>
+                  </div>
                 </div>
                 <div className="flex bg-neutral/80 backdrop-blur-sm rounded-full p-1 border border-primary/5 shadow-inner">
                   <button 
@@ -222,8 +245,17 @@ export function Landing({ onStart }: { onStart: () => void }) {
                       className="space-y-3 relative z-10"
                     >
                       <p>Subject: Project Midnight - Q1 Financial Summary</p>
-                      <p>The total acquisition cost for <span className="redaction-block px-1">REDACTED ENTITY</span> was <span className="redaction-block px-1">REDACTED AMOUNT</span>. This transaction was overseen by <span className="redaction-block px-1">REDACTED NAME</span> and finalized on March 28, 2026.</p>
-                      <p>Please contact <span className="redaction-block px-1">REDACTED EMAIL</span> for further details.</p>
+                      {demoMode === 'redact' ? (
+                        <>
+                          <p>The total acquisition cost for <span className="redaction-block px-1">REDACTED ENTITY</span> was <span className="redaction-block px-1">REDACTED AMOUNT</span>. This transaction was overseen by <span className="redaction-block px-1">REDACTED NAME</span> and finalized on March 28, 2026.</p>
+                          <p>Please contact <span className="redaction-block px-1">REDACTED EMAIL</span> for further details.</p>
+                        </>
+                      ) : (
+                        <>
+                          <p>The total acquisition cost for <span className="redaction-block-substitute px-1">a technology company</span> was <span className="redaction-block-substitute px-1">a multi-million currency amount</span>. This transaction was overseen by <span className="redaction-block-substitute px-1">a project lead</span> and finalized on March 28, 2026.</p>
+                          <p>Please contact <span className="redaction-block-substitute px-1">an internal address</span> for further details.</p>
+                        </>
+                      )}
                       <motion.div 
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
@@ -294,8 +326,8 @@ export function Landing({ onStart }: { onStart: () => void }) {
           {[
             {
               icon: Zap,
-              title: "1. Upload & AI Proposal",
-              desc: "Upload documents securely. Our AI engine analyzes the text and makes a comprehensive redaction proposal based on your instructions."
+              title: "1. Upload & Configure",
+              desc: "Upload documents securely. Choose to either completely Redact sensitive data for legal release, or semantically Substitute it for safe AI re-use."
             },
             {
               icon: Shield,
@@ -377,19 +409,75 @@ export function Landing({ onStart }: { onStart: () => void }) {
           <div className="max-w-2xl">
             <h2 className="text-4xl md:text-5xl font-serif mb-6 italic">Enterprise Scale.</h2>
             <p className="text-lg text-tertiary font-light leading-relaxed">
-              From global law firms to government agencies, Blackline provides the infrastructure needed for secure, high-volume document disclosure with guaranteed compliance.
+              From global law firms verifying public releases, to enterprise AI teams needing sanitized training data—Blackline provides the infrastructure for secure document pipelines.
             </p>
           </div>
         </motion.div>
 
+        <div className="grid md:grid-cols-2 gap-8 mb-24">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            className="card-premium p-8 md:p-10 border border-primary/10 rounded-3xl bg-white/60 backdrop-blur-sm relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:border-primary/20"
+          >
+            <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full -mr-24 -mt-24 blur-3xl transition-transform duration-1000 group-hover:scale-150 pointer-events-none" />
+            <h3 className="text-2xl font-serif mb-4 italic text-primary">Mode: Redact</h3>
+            <p className="text-tertiary font-light leading-relaxed mb-8 pr-4">
+              Designed for strict legal compliance, regulatory filings, and public disclosure. Sensitive entities are permanently stripped from the underlying text and visually replaced with high-contrast geometric demarcations.
+            </p>
+            <div className="bg-neutral/50 p-6 rounded-xl border border-primary/5 font-serif text-sm relative z-10 shadow-inner">
+               <div className="flex items-start gap-3 opacity-60 line-through decoration-primary/30 mb-4">
+                 <span className="font-mono text-red-500 mt-0.5">−</span> 
+                 <p>John Doe finalized the contract with Stellar Dynamics.</p>
+               </div>
+               <div className="flex items-start gap-3 text-primary">
+                 <span className="font-mono text-green-500 mt-0.5">+</span> 
+                 <p><span className="redaction-block px-1">REDACTED NAME</span> finalized the contract with <span className="redaction-block px-1">REDACTED ENTITY</span>.</p>
+               </div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ delay: 0.2 }}
+            className="card-premium p-8 md:p-10 border border-primary/10 rounded-3xl bg-primary/[0.02] backdrop-blur-sm relative overflow-hidden group transition-all duration-500 hover:shadow-xl hover:bg-primary/[0.04]"
+          >
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 rounded-full -ml-24 -mb-24 blur-3xl transition-transform duration-1000 group-hover:scale-150 pointer-events-none" />
+            
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/10 mb-5 backdrop-blur-sm">
+              <Zap className="w-3 h-3 text-primary" />
+              <span className="text-[9px] font-mono uppercase tracking-widest text-primary">New Feature</span>
+            </div>
+
+            <h3 className="text-2xl font-serif mb-4 italic text-primary group-hover:text-primary transition-colors">Mode: Substitute</h3>
+            <p className="text-tertiary font-light leading-relaxed mb-8 pr-4">
+              Engineered for safe enterprise AI training and analytics. The NLP engine seamlessly replaces real targets with semantic equivalents, preserving the grammatical flow and contextual value without leaking PII.
+            </p>
+            
+            <div className="bg-white/50 p-6 rounded-xl border border-primary/5 font-serif text-sm relative z-10 shadow-sm">
+               <div className="flex items-start gap-3 opacity-60 line-through decoration-primary/30 mb-4">
+                 <span className="font-mono text-red-500 mt-0.5">−</span> 
+                 <p>John Doe finalized the contract with Stellar Dynamics.</p>
+               </div>
+               <div className="flex items-start gap-3 text-primary">
+                 <span className="font-mono text-green-500 mt-0.5">+</span> 
+                 <p><span className="redaction-block-substitute px-1">A lead project manager</span> finalized the contract with <span className="redaction-block-substitute px-1">a technology company</span>.</p>
+               </div>
+            </div>
+          </motion.div>
+        </div>
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 mb-20">
           {[
             { title: "Automated Pipelines", desc: "Batch process thousands of documents simultaneously using custom-trained AI models." },
+            { title: "Semantic Substitution", desc: "Generate context-aware generic replacements (e.g., 'a bank' for 'Chase') to keep documents readable for downstream AI." },
             { title: "Advanced RBAC", desc: "Granular role-based access control for reviewers, approvers, and external auditors." },
             { title: "Private Deployment", desc: "Deploy entirely on-premise or within your organization's private VPC." },
-            { title: "Audit Trails", desc: "Immutable cryptographic logs of every redaction decision and document access." },
             { title: "Custom AI Models", desc: "Fine-tune redaction engines for specific legal domains or proprietary data types." },
-            { title: "Dedicated Support", desc: "24/7 SLA-backed support with direct access to our security engineering team." }
+            { title: "Audit Trails", desc: "Immutable cryptographic logs of every redaction decision and document access." }
           ].map((feature, i) => (
             <motion.div 
               key={i} 

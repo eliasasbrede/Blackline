@@ -101,6 +101,11 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
                 <div className="text-[10px] font-mono uppercase tracking-widest text-tertiary mb-2 sm:mb-0">Policy</div>
                 <div className="sm:col-span-2 text-sm font-serif italic text-primary">{manifest.policy}</div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 p-6 border-b border-border hover:bg-neutral/30 transition-colors duration-300">
+                <div className="text-[10px] font-mono uppercase tracking-widest text-tertiary mb-2 sm:mb-0">Mode</div>
+                <div className="sm:col-span-2 text-sm font-mono text-primary uppercase">{manifest.mode}</div>
+              </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-3 p-6 border-b border-border hover:bg-neutral/30 transition-colors duration-300">
                 <div className="text-[10px] font-mono uppercase tracking-widest text-tertiary mb-2 sm:mb-0">Reviewer</div>
