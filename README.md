@@ -1,107 +1,109 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="1200" height="475" alt="Blackline Banner" src="docs/screenshots/blackline-landing.png" />
 </div>
 
 # Blackline — Selective Disclosure Engine
 
-Blackline is a privacy-first document redaction platform that combines AI-powered entity recognition with human-in-the-loop verification and cryptographic proof of integrity.
+**Blackline** is a privacy-first document redaction and substitution platform. It combines AI-powered entity recognition, human-in-the-loop verification, and cryptographic proofs of integrity to enable safe data sharing and AI ingestion.
 
-Built for legal teams, compliance officers, and privacy engineers who need precise, auditable control over what gets disclosed and what stays redacted.
+Built for legal teams, compliance officers, and privacy engineers who need precise, auditable control over what gets disclosed and what stays protected.
+
+## Screenshots
+
+### Landing
+![Blackline landing](docs/screenshots/blackline-landing.png)
+
+### Review workflow
+![Blackline review](docs/screenshots/blackline-review.png)
+
+### Manifest & Proof
+![Blackline manifest](docs/screenshots/blackline-manifest.png)
+
+---
+
+## Core Concepts
+
+### Redact vs. Substitute
+- **Redact**: Completely obscure sensitive information (e.g., "The budget is `[REDACTED]`"). Best for public release or legal discovery.
+* **Substitute**: Replace sensitive entities with context-preserving placeholders (e.g., "John Doe" → `[PERSON_1]`). Best for **Enterprise AI reuse**, allowing LLMs to understand relationships and context without accessing actual PII.
+
+### Trust but Verify
+Blackline uses a **Dual-Path AI Engine** (powered by Google Gemini) where user instructions take priority over generic classification. However, because disclosure is high-stakes, the platform enforces a **Human-in-the-Loop** workflow where every AI suggestion must be approved before the final document is generated.
+
+---
+
+## Key Use Cases
+
+### 1. Enterprise AI Data Ingestion
+Safely feed internal documents, transcripts, and reports into LLMs. By using **Substitution**, you preserve the structural utility of the data for the AI while ensuring no sensitive customer or corporate data leaves your controlled environment.
+
+### 2. Legal & Public Disclosure
+Streamline the process of preparing documents for FOIA requests, court filings, or general public release. The **Manifest** provides an auditable trail of what was changed, by whom, and when.
+
+---
 
 ## Features
 
-- **AI-Powered Redaction** — Instruction-first dual-path engine: user instructions take priority over generic NLP classification. Powered by Google Gemini.
-- **Manual Override** — Highlight any text span in the original document to create a custom redaction directly.
-- **Human Verification** — Every AI suggestion must be individually approved or rejected before release. Bulk accept/reject and undo/redo included.
-- **Cryptographic Manifest** — SHA-256 hashes of both original and redacted documents, timestamped and reviewer-attributed.
-- **Export** — Download the redacted document and JSON manifest for archival or audit.
-- **Midnight Wallet Integration (Preview)** — Connect a Midnight Lace wallet to sign the attestation payload. Full on-chain persistence is planned for a future release.
+- **Instruction-First AI** — Tell the AI *exactly* what to look for (e.g., "Hide all project names and financial figures").
+- **Manual Overrides** — Select any text span in the original document to create custom redactions instantly.
+- **Bulk Workflow** — Efficiently review AI suggestions with bulk accept/reject and quick keyboard shortcuts.
+- **Cryptographic Manifest** — Generates a SHA-256 hash-chain manifest linking the original document, the redacted version, and the reviewer's signature.
+- **Midnight Wallet Integration (Preview)** — Connect a **Midnight Lace** wallet to sign disclosure attestations, paving the way for Zero-Knowledge proofs of redaction.
 
-## Supported Formats
+---
 
-| Format | Status |
-|--------|--------|
-| `.txt`  | ✅ Supported |
-| `.md`   | ✅ Supported |
-| `.pdf`  | 🔜 Planned |
-| `.docx` | 🔜 Planned |
+## Tech Stack
 
-## Architecture
+- **Frontend**: React 19, Tailwind CSS v4, Motion (Framer Motion), Lucide Icons
+- **Backend**: Express, Google Gemini AI (`@google/genai`)
+- **Blockchain**: Midnight Network SDK (Preview)
+- **Build**: Vite 6, TypeScript 5.8
 
-```
-┌─────────────────────┐     ┌──────────────────────┐
-│  Vite + React        │────▶│  Express API Server   │
-│  (localhost:3000)    │ /api│  (localhost:3001)      │
-│                      │◀────│                        │
-│  • Landing           │     │  • /api/redact          │
-│  • Upload            │     │  • Gemini 2.5 Flash     │
-│  • Redaction Review  │     │  • Dual-path engine     │
-│  • Manifest          │     │  • Mock fallback        │
-│  • Midnight Proof    │     └──────────────────────┘
-└─────────────────────┘
-```
+---
 
 ## Getting Started
 
 ### Prerequisites
-
-- **Node.js** v18+
-- A [Gemini API key](https://aistudio.google.com/apikey) (free tier works)
+- Node.js v18+
+- A [Gemini API key](https://aistudio.google.com/apikey)
 
 ### Setup
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/eliasasbrede/Blackline.git
+   cd Blackline
+   ```
 
-```bash
-# Clone the repository
-git clone https://github.com/your-org/blackline.git
-cd blackline
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-# Install dependencies
-npm install
+3. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your GEMINI_API_KEY
+   ```
 
-# Configure your API key
-cp .env.example .env
-# Edit .env and replace YOUR_GEMINI_API_KEY_HERE with your real key
-
-# Start both frontend and backend
-npm run dev:all
-```
-
-The app will be available at **http://localhost:3000**.
-
-> **Note:** If you don't set a `GEMINI_API_KEY`, the server falls back to a regex-based mock engine for testing purposes.
-
-### Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev:all` | Start frontend + backend concurrently |
-| `npm run dev` | Start Vite dev server only |
-| `npm run dev:server` | Start Express API server only |
-| `npm run build` | Production build |
-| `npm run lint` | TypeScript type check |
-
-## Tech Stack
-
-- **Frontend:** React 19, Tailwind CSS v4, Motion (Framer Motion), Lucide Icons
-- **Backend:** Express, Google Gemini AI (`@google/genai`)
-- **Blockchain:** Midnight Network SDK (preview integration)
-- **Build:** Vite 6, TypeScript 5.8
-
-## Current Limitations
-
-- PDF and DOCX file support is not yet implemented
-- No user authentication or multi-user sessions
-- Midnight on-chain attestation requires a compiled Compact contract (`compactc`), which is not bundled — wallet signing works in preview mode
-- Document size is capped at 100,000 characters
-- The Gemini free tier has rate limits; a paid API key is recommended for production use
-- CORS is handled via Vite proxy in development; production deployment requires proper CORS configuration
-
-## License
-
-MIT
+4. **Launch Local Servers**
+   ```bash
+   npm run dev:all
+   ```
+   Access the app at **http://localhost:3000**.
 
 ---
 
-<div align="center">
-<sub>© 2026 Blackline Protocol · Selective Disclosure v1.0</sub>
-</div>
+## Roadmap
+
+- [ ] **Native PDF/DOCX Support**: Direct ingestion and export of formatted documents.
+- [ ] **On-Chain Persistence**: Publishing redaction manifests to the Midnight network for permanent, trustless verification.
+- [ ] **Template Library**: Pre-set redaction rules for GDPR, HIPAA, and CCPA.
+- [ ] **ZKP Integration**: Verified "Proof of Redaction" where a third party can verify a document was redacted according to specific rules without seeing the original data.
+
+## Limitations (MVP)
+- **Preview Integration**: The Midnight wallet integration is a functional preview. On-chain state persistence is coming in v0.4.
+- **Format Support**: Current version focuses on text-based formats (`.txt`, `.md`).
+- **File Size**: Optimised for documents up to 100k characters.
+
+## License
+MIT — © 2026 Blackline Protocol.
