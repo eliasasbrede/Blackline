@@ -11,7 +11,7 @@ import { Upload } from "./components/Upload";
 import { RedactionReview } from "./components/RedactionReview";
 import { Manifest } from "./components/Manifest";
 import { MidnightProof } from "./components/MidnightProof";
-import { AppStep, DocumentState, Redaction, ReleaseManifest } from "./types";
+import { AppStep, DocumentState, Redaction, ReleaseManifest, AttestationState } from "./types";
 import { suggestRedactions } from "./services/geminiService";
 import { Loader2, ShieldAlert } from "lucide-react";
 
@@ -121,6 +121,17 @@ export default function App() {
 
       const finalDocumentWithHash = `${redactedText}\n\n=================================================================\nCRYPTOGRAPHIC PROOF OF DISCLOSURE\n=================================================================\nMODE         : ${docState.mode.toUpperCase()}\nSHA-256 HASH : ${finalHash}\nORIGINAL HASH: ${originalHash}\nTIMESTAMP    : ${timestamp}\nREVIEWER     : ${reviewerLine}\n=================================================================`;
 
+      // Generate manifest hash for attestation document ID
+      const manifestJson = JSON.stringify({
+        mode: docState.mode,
+        hash: finalHash,
+        originalHash: originalHash,
+        timestamp: timestamp,
+        policy: docState.instructions,
+        redactionCount: acceptedRedactions.length,
+      });
+      const manifestHash = await generateHash(manifestJson);
+
       const manifest: ReleaseManifest = {
         mode: docState.mode,
         hash: finalHash,
@@ -129,7 +140,8 @@ export default function App() {
         reviewerName: docState.reviewerName,
         reviewerEmail: docState.reviewerEmail,
         policy: docState.instructions,
-        redactionCount: acceptedRedactions.length
+        redactionCount: acceptedRedactions.length,
+        manifestHash,
       };
 
       setDocState(prev => ({ ...prev, manifest, redactedText: finalDocumentWithHash }));
@@ -143,6 +155,13 @@ export default function App() {
   };
 
   const handleManifestNext = () => setStep('MIDNIGHT');
+
+  const handleAttestationComplete = (attestation: AttestationState) => {
+    setDocState(prev => ({
+      ...prev,
+      manifest: prev.manifest ? { ...prev.manifest, attestation } : prev.manifest,
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-neutral text-primary font-sans selection:bg-primary selection:text-neutral relative">
@@ -243,6 +262,7 @@ export default function App() {
               <MidnightProof 
                 manifest={docState.manifest!}
                 onBack={() => setStep('MANIFEST')}
+                onAttestationComplete={handleAttestationComplete}
               />
             </motion.div>
           )}

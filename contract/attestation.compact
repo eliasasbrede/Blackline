@@ -1,7 +1,13 @@
-pragma compact-v8;
+pragma language_version 0.22;
+import CompactStandardLibrary;
+
+// Blackline Release Attestation Contract
+// Stores a mapping from document ID (SHA-256 of manifest) to metadata hash
+// (SHA-256 of original + redacted + mode + timestamp).
+// No document content is ever stored on-chain.
 
 export ledger attestations: Map<Bytes<32>, Bytes<32>>;
 
 export circuit attestRelease(documentId: Bytes<32>, metadataHash: Bytes<32>): [] {
-  attestations.insert(documentId, metadataHash);
+  attestations.insert(disclose(documentId), disclose(metadataHash));
 }

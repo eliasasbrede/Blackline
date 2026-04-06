@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Upload as UploadIcon, FileText, ArrowRight, Info, ChevronLeft, Settings2, ShieldAlert } from "lucide-react";
+import { Upload as UploadIcon, FileText, ArrowRight, Info, ChevronLeft, Settings2, ShieldAlert, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface UploadProps {
@@ -24,19 +24,53 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
     setMode(newMode);
   };
   const [isDragging, setIsDragging] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionWarnings, setExtractionWarnings] = useState<string[]>([]);
 
-  const MAX_FILE_SIZE = 100_000; // 100KB
-  const ALLOWED_EXTENSIONS = ['.txt', '.md'];
+  const MAX_FILE_SIZE = 50_000_000; // 50MB
+  const ALLOWED_EXTENSIONS = ['.txt', '.md', '.docx', '.pdf'];
+  const BINARY_EXTENSIONS = ['.docx', '.pdf'];
 
   const validateFile = (file: File): string | null => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-      return `Unsupported file type "${ext}". Please upload a .txt or .md file.`;
+      return `Unsupported file type "${ext}". Please upload a .txt, .md, .docx, or .pdf file.`;
     }
     if (file.size > MAX_FILE_SIZE) {
-      return `File too large (${(file.size / 1000).toFixed(0)}KB). Maximum size is ${MAX_FILE_SIZE / 1000}KB.`;
+      return `File too large (${(file.size / 1_000_000).toFixed(1)}MB). Maximum size is ${MAX_FILE_SIZE / 1_000_000}MB.`;
     }
     return null;
+  };
+
+  const isBinaryFile = (file: File): boolean => {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    return BINARY_EXTENSIONS.includes(ext);
+  };
+
+  const extractFromServer = async (file: File) => {
+    setIsExtracting(true);
+    setFileError(null);
+    setExtractionWarnings([]);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/extract', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Extraction failed (${response.status})`);
+      }
+      setText(data.text);
+      if (data.warnings && data.warnings.length > 0) {
+        setExtractionWarnings(data.warnings);
+      }
+    } catch (err: any) {
+      setFileError(err.message || 'Failed to extract text from the uploaded file.');
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const [fileError, setFileError] = useState<string | null>(null);
@@ -47,11 +81,16 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
       const error = validateFile(file);
       if (error) { setFileError(error); return; }
       setFileError(null);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setText(event.target?.result as string);
-      };
-      reader.readAsText(file);
+      setExtractionWarnings([]);
+      if (isBinaryFile(file)) {
+        extractFromServer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setText(event.target?.result as string);
+        };
+        reader.readAsText(file);
+      }
     }
   };
 
@@ -63,11 +102,16 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
       const error = validateFile(file);
       if (error) { setFileError(error); return; }
       setFileError(null);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setText(event.target?.result as string);
-      };
-      reader.readAsText(file);
+      setExtractionWarnings([]);
+      if (isBinaryFile(file)) {
+        extractFromServer(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setText(event.target?.result as string);
+        };
+        reader.readAsText(file);
+      }
     }
   };
 
@@ -203,6 +247,19 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
               </motion.div>
             )}
           </AnimatePresence>
+
+          <AnimatePresence>
+            {extractionWarnings.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="bg-primary/5 border border-primary/10 text-tertiary p-3 rounded-xl text-[10px] font-mono uppercase tracking-widest text-center"
+              >
+                {extractionWarnings[0]}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Right Column: Document Input */}
@@ -234,7 +291,7 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
                 </AnimatePresence>
               </div>
               <label className="cursor-pointer text-[10px] font-mono uppercase tracking-widest text-primary hover:text-primary/70 transition-all duration-300 px-4 py-2 rounded-full border border-primary/10 bg-white shadow-sm hover:shadow hover:-translate-y-0.5 active:translate-y-0">
-                <input type="file" className="hidden" onChange={handleFileChange} accept=".txt,.md" />
+                <input type="file" className="hidden" onChange={handleFileChange} accept=".txt,.md,.docx,.pdf" />
                 Browse Files
               </label>
             </div>
@@ -260,17 +317,24 @@ export function Upload({ initialText = "", initialInstructions = "", onNext, onB
                       )} />
                     </div>
                     <p className="text-lg font-serif italic text-tertiary mb-2">Drag & drop your document here</p>
-                    <p className="text-[10px] font-mono uppercase tracking-widest text-tertiary/40">Supports .txt, .md</p>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-tertiary/40">Supports .txt, .md, .docx, .pdf</p>
                   </motion.div>
                 )}
               </AnimatePresence>
               
-              <textarea 
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                className="flex-1 w-full bg-transparent border-none focus:outline-none text-base font-sans leading-loose resize-none placeholder:text-transparent relative z-10 transition-colors duration-300"
-                placeholder="Or paste your text directly..."
-              />
+              {isExtracting ? (
+                <div className="flex-1 w-full flex flex-col items-center justify-center gap-4 relative z-10">
+                  <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                  <p className="text-sm font-mono uppercase tracking-widest text-tertiary">Extracting text…</p>
+                </div>
+              ) : (
+                <textarea 
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="flex-1 w-full bg-transparent border-none focus:outline-none text-base font-sans leading-loose resize-none placeholder:text-transparent relative z-10 transition-colors duration-300"
+                  placeholder="Or paste your text directly..."
+                />
+              )}
             </div>
 
             {/* Footer of the editor */}

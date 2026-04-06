@@ -1,6 +1,8 @@
 import express from "express";
 import { GoogleGenAI } from "@google/genai";
+import multer from "multer";
 import dotenv from "dotenv";
+import { extractText } from "./extractors.js";
 
 dotenv.config();
 
@@ -383,6 +385,42 @@ app.post("/api/redact", async (req, res) => {
     }
 
     res.status(500).json({ error: "Failed to analyze document. Please try again." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/extract — binary file upload → plaintext
+// ---------------------------------------------------------------------------
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
+
+app.post("/api/extract", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: "No file uploaded." });
+      return;
+    }
+
+    const filename = req.file.originalname || "document";
+    console.log(`[api] Extract request — file: "${filename}", size: ${req.file.size} bytes`);
+
+    const result = await extractText(req.file.buffer, filename);
+
+    // Enforce the same character limit as the redaction endpoint
+    if (result.text.length > MAX_DOCUMENT_LENGTH) {
+      res.status(413).json({
+        error: `Extracted text is too large (${result.text.length.toLocaleString()} characters). Maximum is ${MAX_DOCUMENT_LENGTH.toLocaleString()} characters.`,
+      });
+      return;
+    }
+
+    console.log(`[api] Extracted ${result.text.length} chars from "${filename}" (${result.warnings.length} warnings)`);
+    res.json(result);
+  } catch (err: any) {
+    console.error("[api] Extraction error:", err?.message || err);
+    res.status(422).json({ error: err?.message || "Failed to extract text from the uploaded file." });
   }
 });
 

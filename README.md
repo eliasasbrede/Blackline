@@ -47,8 +47,9 @@ Streamline the process of preparing documents for FOIA requests, court filings, 
 - **Instruction-First AI** — Tell the AI *exactly* what to look for (e.g., "Hide all project names and financial figures").
 - **Manual Overrides** — Select any text span in the original document to create custom redactions instantly.
 - **Bulk Workflow** — Efficiently review AI suggestions with bulk accept/reject and quick keyboard shortcuts.
+- **Native PDF & DOCX Support** — Direct ingestion of formatted documents into the AI engine.
 - **Cryptographic Manifest** — Generates a SHA-256 hash-chain manifest linking the original document, the redacted version, and the reviewer's signature.
-- **Midnight Wallet Integration (Preview)** — Connect a **Midnight Lace** wallet to sign disclosure attestations, paving the way for Zero-Knowledge proofs of redaction.
+- **Midnight Wallet Integration** — Connect a **Midnight Lace** or compatible wallet to securely sign disclosure attestations, paving the way for Zero-Knowledge proofs of redaction.
 
 ---
 
@@ -95,15 +96,14 @@ Streamline the process of preparing documents for FOIA requests, court filings, 
 
 ## Roadmap
 
-- [ ] **Native PDF/DOCX Support**: Direct ingestion and export of formatted documents.
+- [x] **Native PDF/DOCX Support**: Direct ingestion of formatted documents.
 - [ ] **On-Chain Persistence**: Publishing redaction manifests to the Midnight network for permanent, trustless verification.
 - [ ] **Template Library**: Pre-set redaction rules for GDPR, HIPAA, and CCPA.
 - [ ] **ZKP Integration**: Verified "Proof of Redaction" where a third party can verify a document was redacted according to specific rules without seeing the original data.
 
 ## Limitations (MVP)
-- **Preview Integration**: The Midnight wallet integration is a functional preview. On-chain state persistence is coming in v0.4.
-- **Format Support**: Current version focuses on text-based formats (`.txt`, `.md`).
-- **File Size**: Optimised for documents up to 100k characters.
+- **On-Chain Deployment**: The Midnight wallet integration supports local cryptographic signatures. Full on-chain contract persistence is deferred to a future phase.
+- **File Size**: Optimised for documents up to 50MB. Large format PDFs may take slightly longer to parse.
 
 ## License
 MIT — © 2026 Blackline Protocol.

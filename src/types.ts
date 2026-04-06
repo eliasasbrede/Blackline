@@ -31,6 +31,31 @@ export interface ReleaseManifest {
   policy: string;
   redactionCount: number;
   originalHash: string;
+  manifestHash?: string;
+  attestation?: AttestationState;
+}
+
+export interface AttestationState {
+  status: 'none' | 'signed' | 'on-chain';
+  signature?: { data: string; signature: string; verifyingKey: string };
+  txHash?: string;
+  contractAddress?: string;
+  attestedAt?: string;
+  walletAddress?: string;
+  documentId?: string;
+  metadataHash?: string;
+}
+
+export interface WalletState {
+  available: boolean;
+  connected: boolean;
+  address: string | null;
+  balance: { dust: bigint } | null;
+  network: string;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  error?: string;
+  walletName?: string;
+  walletIcon?: string;
 }
 
 export type AppStep = 'LANDING' | 'UPLOAD' | 'REDACT' | 'MIDNIGHT' | 'MANIFEST';

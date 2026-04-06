@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Shield, Download, Fingerprint, FileCheck, ArrowRight, Copy, Check, Lock, ChevronLeft, Database, Activity } from "lucide-react";
+import { Shield, Download, Fingerprint, FileCheck, ArrowRight, Copy, Check, Lock, ChevronLeft, Database, Activity, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ReleaseManifest } from "../types";
 import { cn } from "../lib/utils";
@@ -152,7 +152,11 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
               className="btn-outline flex-1 flex items-center justify-center gap-3 group transition-all duration-500 hover:shadow-md active:scale-[0.98]"
             >
               Blockchain Attestation
-              <span className="text-[8px] opacity-60 font-normal ml-1">(Preview)</span>
+              {manifest.attestation?.status === 'signed' && (
+                <span className="flex items-center gap-1 text-[8px] text-green-600 font-normal ml-1">
+                  <CheckCircle2 className="w-3 h-3" /> Signed
+                </span>
+              )}
               <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </motion.div>
@@ -237,9 +241,18 @@ export function Manifest({ manifest, redactedText, onNext, onBack }: ManifestPro
             <div className="p-4 border-t border-border bg-neutral/30 flex items-center justify-between relative z-10 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <div className="w-2 h-2 rounded-full bg-tertiary/40 relative z-10" />
+                  <div className={cn(
+                    "w-2 h-2 rounded-full relative z-10",
+                    manifest.attestation?.status === 'signed' ? "bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.5)]" :
+                    manifest.attestation?.status === 'on-chain' ? "bg-green-500" :
+                    "bg-tertiary/40"
+                  )} />
                 </div>
-                <span className="text-[10px] font-mono tracking-[0.2em] text-tertiary/60 uppercase">Local Verification Only</span>
+                <span className="text-[10px] font-mono tracking-[0.2em] text-tertiary/60 uppercase">
+                  {manifest.attestation?.status === 'signed' ? 'Wallet Signed' :
+                   manifest.attestation?.status === 'on-chain' ? 'On-Chain Attested' :
+                   'Not Yet Attested'}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-[10px] font-mono tracking-[0.2em] text-tertiary/40 uppercase">
                 <Activity className="w-3 h-3" />
