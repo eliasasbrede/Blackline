@@ -57,7 +57,7 @@ Streamline the process of preparing documents for FOIA requests, court filings, 
 
 - **Frontend**: React 19, Tailwind CSS v4, Motion (Framer Motion), Lucide Icons
 - **Backend**: Express, Google Gemini AI (`@google/genai`)
-- **Blockchain**: Midnight Network SDK (Preview)
+- **Blockchain**: Midnight Wallet Connector API
 - **Build**: Vite 6, TypeScript 5.8
 
 ---

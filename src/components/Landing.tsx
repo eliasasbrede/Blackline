@@ -45,7 +45,7 @@ export function Header({ onHome, onRedact, isLanding = false }: { onHome?: () =>
       </nav>
       
       <div className="flex items-center gap-6">
-        <span className="hidden sm:inline text-[9px] font-mono text-tertiary/60 uppercase tracking-widest">v1.0.0-mvp</span>
+        <span className="hidden sm:inline text-[9px] font-mono text-tertiary/60 uppercase tracking-widest">v1.0.1-mvp</span>
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="w-10 h-10 rounded-full border border-primary/10 flex items-center justify-center hover:bg-primary/5 transition-colors relative z-50 md:hidden"
@@ -111,7 +111,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
           >
             <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/5 mb-8 backdrop-blur-sm">
               <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(15,17,19,0.5)]" />
-              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Midnight Network — Preview</span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Midnight Network Integration</span>
             </motion.div>
             
             <motion.h1 variants={itemVariants} className="text-6xl md:text-7xl lg:text-8xl font-serif leading-[0.9] mb-8 italic">
@@ -374,7 +374,7 @@ export function Landing({ onStart }: { onStart: () => void }) {
         >
           <h2 className="text-4xl md:text-5xl font-serif mb-8 italic">Uncompromising Security.</h2>
           <p className="text-xl text-tertiary font-light leading-relaxed mb-12">
-            Blackline is built on the Midnight network, leveraging zero-knowledge proofs to ensure that your sensitive data never leaves your control. We provide cryptographic certainty in an uncertain world.
+            Blackline integrates with Midnight network wallets to generate cryptographic attestations of your redactions, establishing a foundation for future Zero-Knowledge persistence.
           </p>
           <div className="grid sm:grid-cols-2 gap-8">
             <motion.div 
@@ -382,8 +382,8 @@ export function Landing({ onStart }: { onStart: () => void }) {
               transition={{ duration: 0.3 }}
               className="p-8 bg-white/80 backdrop-blur-sm border border-border rounded-3xl transition-colors duration-300 hover:border-primary/20"
             >
-              <h4 className="font-serif text-xl mb-4 italic text-primary">Zero-Knowledge</h4>
-              <p className="text-sm text-tertiary leading-relaxed">Prove document integrity without revealing a single byte of redacted content.</p>
+              <h4 className="font-serif text-xl mb-4 italic text-primary">Cryptographic Proof</h4>
+              <p className="text-sm text-tertiary leading-relaxed">Generate locally verifiable signatures that prove document integrity and reviewer authorization.</p>
             </motion.div>
             <motion.div 
               whileHover={{ y: -5, boxShadow: "0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05)" }}

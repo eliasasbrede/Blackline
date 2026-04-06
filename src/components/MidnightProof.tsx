@@ -160,7 +160,7 @@ export function MidnightProof({ manifest, onBack, onAttestationComplete }: Midni
             <Boxes className="w-3 h-3 text-primary" />
             <span className="text-[10px] font-mono uppercase tracking-widest text-primary/60">Midnight Attestation</span>
           </div>
-          <h2 className="text-6xl md:text-7xl font-serif mb-8 italic leading-[0.9]">On-Chain <br /><span className="text-tertiary/40">Persistence.</span></h2>
+          <h2 className="text-6xl md:text-7xl font-serif mb-8 italic leading-[0.9]">Cryptographic <br /><span className="text-tertiary/40">Attestation.</span></h2>
           <p className="text-tertiary font-light text-xl max-w-2xl mx-auto leading-relaxed">
             Sign your release manifest with your Midnight wallet to create a verifiable attestation tied to your identity.
           </p>
